@@ -33,6 +33,8 @@ type Client struct {
   capVersion int
 
   realHost   string
+  ip         string
+  port       string
   remoteAddr net.Addr
 
   ctime time.Time
@@ -51,10 +53,14 @@ type Client struct {
 func NewClient(server *Server, conn net.Conn) *Client {
   now := time.Now()
 
+  var ip string
+  ip, _, _ = net.SplitHostPort(conn.RemoteAddr().String())
+
   client := &Client{
     ctime:      now,
     atime:      now,
     server:     server,
+    ip:         ip,
     socket:     NewSocket(conn),
     state:      clientStateNew,
     remoteAddr: conn.RemoteAddr(),

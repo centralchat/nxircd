@@ -67,11 +67,13 @@ func (server *Server) Run() {
   for !done {
     select {
     case <-server.signals:
+      fmt.Printf("Recieved Signal?")
       // server.Shutdown()
       done = true
 
     case conn := <-server.connections:
-      NewClient(server, conn)
+      fmt.Printf("Con: %x", conn)
+      go NewClient(server, conn)
     }
   }
 }
