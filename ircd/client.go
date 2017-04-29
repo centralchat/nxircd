@@ -112,6 +112,8 @@ func (client *Client) run() {
 
 }
 
+/**************************************************************/
+
 func (client *Client) updateMasks() {
   client.nickMask = fmt.Sprintf("%s!%s@%s", client.nick, client.ident, client.host)
 
@@ -157,16 +159,40 @@ func (client *Client) SetNick(nick string) {
 
 /**************************************************************/
 
-// SetNick sets for the first time a clients nick
+// ChangeNick changes the nickname of a client
 func (client *Client) ChangeNick(nick string) {
   //TODO: Add nick exists checks
-  if client.isRegistered {
-    var oldNick = client.nick
-    client.nick = nick
-
-    client.server.clients.Move(oldNick, client)
-    client.Send(oldNick, "NICK", client.nick)
+  if !client.isRegistered {
+    return
   }
+
+  if cli := client.server.clients.Find(nick); cli != nil {
+    client.Send(client.server.name, ERR_NICKNAMEINUSE, client.nick, fmt.Sprintf("%s is in use", nick))
+    return
+  }
+
+  var oldNick = client.nick
+  client.nick = nick
+
+  client.server.clients.Move(oldNick, client)
+
+  for _, cli := range client.CommonClients().list {
+    cli.Send(oldNick, "NICK", client.nick)
+  }
+}
+
+/**************************************************************/
+
+// Quit remove a client from the network
+func (client *Client) Quit(message string) {
+  for _, channel := range client.channels.list {
+    client.server.log.Debug("Removing: %s from %s", client.nick, channel.name)
+
+    channel.Remove(client)                     // This locks
+    channel.Send(client.nick, "QUIT", message) // This locks
+  }
+  client.server.clients.Delete(client)
+  client.socket.Close()
 }
 
 /**************************************************************/
@@ -178,4 +204,21 @@ func (client *Client) Register() {
   }
   client.isRegistered = true
   client.state = clientStateReg
+}
+
+/**************************************************************/
+
+// CommonClients are all the clients that are in channels with
+// our user
+func (client *Client) CommonClients() (cl ClientList) {
+  cl.Add(client)
+
+  for _, channel := range client.channels.list {
+    channel.lock.RLock()
+    for c := range channel.clients {
+      cl.Add(c)
+    }
+    channel.lock.RUnlock()
+  }
+  return
 }

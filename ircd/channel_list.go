@@ -5,6 +5,7 @@ import (
   "sync"
 )
 
+// ChannelListMap -
 type ChannelListMap map[string]*Channel
 
 // ChannelList stores channels and allows for easy lookup of them

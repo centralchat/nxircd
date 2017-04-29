@@ -41,14 +41,17 @@ func (channel *Channel) Join(client *Client) {
   channel.Send(client.nick, "JOIN", channel.name)
 }
 
-func (channel *Channel) Part(client *Client) {
+func (channel *Channel) Part(client *Client, message string) {
+  channel.Remove(client)
+  channel.Send(client.nick, "PART", channel.name, message)
+}
+
+func (channel *Channel) Remove(client *Client) {
   channel.lock.Lock()
   defer channel.lock.Unlock()
 
   channel.clients.Delete(client)
   client.channels.Delete(channel)
-
-  channel.Send(client.nick, "PART", channel.name)
 }
 
 func (channel *Channel) Send(prefix string, command string, params ...string) (err error) {

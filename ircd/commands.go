@@ -3,7 +3,6 @@ package ircd
 import (
   // For later
   "bytes"
-  "strconv"
   _ "strings"
 )
 
@@ -64,6 +63,10 @@ var CommandList = map[string]Command{
     handler:   cmdJoinHandler,
     minParams: 1,
   },
+  "PART": {
+    handler:   cmdPartHandler,
+    minParams: 1,
+  },
   "WHO": {
     handler:   cmdWhoHandler,
     minParams: 1,
@@ -71,6 +74,10 @@ var CommandList = map[string]Command{
   "PING": {
     handler:   cmdPingHandler,
     minParams: 0,
+  },
+  "QUIT": {
+    handler:   cmdQuitHandler,
+    minParams: 1,
   },
 
   // "PART": {
@@ -133,6 +140,20 @@ func cmdJoinHandler(client *Client, msg ircmsg.IrcMessage) bool {
 
 /************************************************************************************/
 
+func cmdPartHandler(client *Client, msg ircmsg.IrcMessage) bool {
+  channel := client.channels.Find(string(msg.Params[0]))
+
+  if channel == nil {
+    client.Send(client.server.name, ERR_NOTONCHANNEL, msg.Params[0], "You are not currently on the channel")
+    return false
+  }
+
+  channel.Part(client, msg.Params[1])
+  return true
+}
+
+/************************************************************************************/
+
 func cmdWhoHandler(client *Client, msg ircmsg.IrcMessage) bool {
   var buf bytes.Buffer
 
@@ -156,6 +177,13 @@ func cmdWhoHandler(client *Client, msg ircmsg.IrcMessage) bool {
 
 func cmdPingHandler(client *Client, msg ircmsg.IrcMessage) bool {
   client.pingTime = client.server.time
-  client.Send(client.server.name, "PONG", client.nick, msg.Params...)
+  client.Send(client.server.name, "PONG", client.nick, msg.Params[0])
+  return true
+}
+
+/************************************************************************************/
+
+func cmdQuitHandler(client *Client, msg ircmsg.IrcMessage) bool {
+  client.Quit(msg.Params[0])
   return true
 }

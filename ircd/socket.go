@@ -30,6 +30,15 @@ func NewSocket(c net.Conn) *Socket {
 
 /**************************************************************/
 
+func (socket *Socket) Close() {
+  if !socket.closed {
+    socket.closed = true
+    socket.conn.Close()
+  }
+}
+
+/**************************************************************/
+
 func (socket *Socket) Read() (line string, err error) {
   if socket.closed {
     err = io.EOF
@@ -60,10 +69,6 @@ func (socket *Socket) Write(line string) (err error) {
   if _, err = socket.writer.WriteString(line); err != nil {
     return
   }
-
-  // if _, err = socket.writer.WriteString(CRLF); err != nil {
-  //   return
-  // }
 
   if err = socket.writer.Flush(); err != nil {
     return
