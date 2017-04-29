@@ -84,7 +84,16 @@ func (client *Client) run() {
 
     // TODO: Handle this error
     msg, _ := ircmsg.ParseLineMaxLen(line, 512, 512)
-    cmd, _ := CommandList[msg.Command]
+
+    cmd, exists := CommandList[msg.Command]
+    if !exists {
+      if len(msg.Command) > 0 {
+        client.Send(client.server.name, ERR_UNKNOWNCOMMAND, client.nick, msg.Command, "Unknown command")
+      } else {
+        client.Send(client.server.name, ERR_UNKNOWNCOMMAND, client.nick, "lastcmd", "No command given")
+      }
+      continue
+    }
 
     _ = cmd.Run(client, msg)
   }

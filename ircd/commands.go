@@ -83,7 +83,7 @@ func cmdPrivMsgHandler(client *Client, msg ircmsg.IrcMessage) bool {
     }
     target := client.server.clients.Get(target)
     if target != nil {
-      client.Send(client.nick, "PRIVMSG", target.nick, fmt.Sprintf(":%s", message))
+      target.Send(client.nick, "PRIVMSG", target.nick, fmt.Sprintf(":%s", message))
     }
   }
   return true
