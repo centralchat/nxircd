@@ -30,11 +30,36 @@ func (cl *ClientList) Add(client *Client) {
 }
 
 // Get a client from our client list
-func (cl *ClientList) Get(nick string) (client *Client) {
+func (cl *ClientList) Find(nick string) (client *Client) {
   lowerName := strings.ToLower(nick)
   cl.lock.Lock()
   defer cl.lock.Unlock()
 
   client = cl.list[lowerName]
   return
+}
+
+func (cl *ClientList) DeleteByNick(nick string) {
+  lowerName := strings.ToLower(nick)
+  cl.lock.Lock()
+  defer cl.lock.Unlock()
+
+  delete(cl.list, lowerName)
+  return
+}
+
+// Delete a client from the ClientList
+func (cl *ClientList) Delete(client *Client) {
+  lowerName := strings.ToLower(client.nick)
+  cl.lock.Lock()
+  defer cl.lock.Unlock()
+
+  delete(cl.list, lowerName)
+  return
+}
+
+// Replace old key with new client
+func (cl *ClientList) Move(oldKey string, client *Client) {
+  cl.DeleteByNick(oldKey)
+  cl.Add(client)
 }

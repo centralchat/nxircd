@@ -61,9 +61,9 @@ func (socket *Socket) Write(line string) (err error) {
     return
   }
 
-  if _, err = socket.writer.WriteString(CRLF); err != nil {
-    return
-  }
+  // if _, err = socket.writer.WriteString(CRLF); err != nil {
+  //   return
+  // }
 
   if err = socket.writer.Flush(); err != nil {
     return

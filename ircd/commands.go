@@ -1,7 +1,6 @@
 package ircd
 
 import (
-  "fmt"
   _ "strings"
 )
 
@@ -81,9 +80,10 @@ func cmdPrivMsgHandler(client *Client, msg ircmsg.IrcMessage) bool {
     if i > 3 {
       break
     }
-    target := client.server.clients.Get(target)
+
+    target := client.server.clients.Find(target)
     if target != nil {
-      target.Send(client.nick, "PRIVMSG", target.nick, fmt.Sprintf(":%s", message))
+      target.Send(client.nick, "PRIVMSG", target.nick, message)
     }
   }
   return true

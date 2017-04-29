@@ -80,7 +80,8 @@ func (client *Client) run() {
       fmt.Printf("Socket error: %x", err)
       break
     }
-    fmt.Printf("[%s] <-- %s\n", client.ip, line)
+
+    client.server.log.Debug("<-- %s\n", line)
 
     // TODO: Handle this error
     msg, _ := ircmsg.ParseLineMaxLen(line, 512, 512)
@@ -110,11 +111,11 @@ func (client *Client) Send(prefix string, command string, params ...string) (err
   message := ircmsg.MakeMessage(nil, prefix, command, params...)
   line, err = message.LineMaxLen(512, 512)
   if err != nil {
-    fmt.Printf("Send %s\n", err)
+    client.server.log.Warn("Send error %s\n", err)
     return
   }
 
-  fmt.Printf("-> %s\n", strings.TrimRight(line, "\r\n"))
+  client.server.log.Debug("--> %s\n", strings.TrimRight(line, "\r\n"))
 
   client.socket.Write(line)
   return
@@ -135,6 +136,20 @@ func (client *Client) SetNick(nick string) {
   if !client.isRegistered {
     client.nick = nick
     client.server.clients.Add(client)
+  }
+}
+
+/**************************************************************/
+
+// SetNick sets for the first time a clients nick
+func (client *Client) ChangeNick(nick string) {
+  //TODO: Add nick exists checks
+  if client.isRegistered {
+    var oldNick = client.nick
+    client.nick = nick
+
+    client.server.clients.Move(oldNick, client)
+    client.Send(oldNick, "NICK", client.nick)
   }
 }
 

@@ -3,6 +3,7 @@ package ircd
 import (
   "fmt"
   "net"
+  "nxircd/log"
   "os"
   "os/signal"
   "syscall"
@@ -35,6 +36,7 @@ type Server struct {
   signals     chan os.Signal
 
   listeners Listener
+  log       *log.Logger
 }
 
 /**************************************************************/
@@ -48,6 +50,7 @@ func NewServer(config *Config) *Server {
     connections: make(chan net.Conn),
     signals:     make(chan os.Signal, len(ServerSignals)),
     listeners:   make(Listener, 15),
+    log:         log.New("ircd ", "nxircd.log", config.LogLevel),
   }
 
   server.name = config.Name
@@ -72,7 +75,6 @@ func (server *Server) Run() {
       done = true
 
     case conn := <-server.connections:
-      fmt.Printf("Con: %x", conn)
       go NewClient(server, conn)
     }
   }
@@ -109,10 +111,10 @@ func (server *Server) listen(addr string) (listener net.Listener, err error) {
     for {
       conn, err := listener.Accept()
       if err != nil {
-        fmt.Printf("%s accept error: %s\n", server.name, err)
+        server.log.Warn("%s accept error: %s\n", server.name, err)
         continue
       }
-      fmt.Printf("%s accept: %s\n", server.name, conn.RemoteAddr())
+      server.log.Debug("%s accept: %s\n", server.name, conn.RemoteAddr())
 
       server.connections <- conn
     }
@@ -132,7 +134,7 @@ func (server *Server) register(client *Client) {
   client.Send(server.name, RPL_CREATED, client.nick, fmt.Sprintf("This server was created %s", server.ctime.Format(time.RFC1123)))
   client.Send(server.name, RPL_MYINFO, client.nick, server.name, VER_STRING, "", "")
 
-  fmt.Printf("Client registered [%s]", client.nick)
+  server.log.Info("Client registered [%s]", client.nick)
 }
 
 /**************************************************************/

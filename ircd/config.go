@@ -20,10 +20,10 @@ type IrcOpConfig struct {
 
 // Config is
 type Config struct {
-  Name string
-
-  Listen []ListenConfig
-  IrcOps []IrcOpConfig
+  Name     string
+  LogLevel string
+  Listen   []ListenConfig
+  IrcOps   []IrcOpConfig
 }
 
 // NewConfig is
