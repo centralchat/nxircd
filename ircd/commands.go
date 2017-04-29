@@ -1,5 +1,10 @@
 package ircd
 
+import (
+  "fmt"
+  _ "strings"
+)
+
 // For now getout cheep and use this one
 // Since it has specs
 import (
@@ -15,6 +20,8 @@ type Command struct {
   capabs       []string
 }
 
+/************************************************************************************/
+
 // Run - Perform the command
 func (command *Command) Run(client *Client, msg ircmsg.IrcMessage) (cmdStatus bool) {
   if len(msg.Params) < command.minParams {
@@ -25,10 +32,59 @@ func (command *Command) Run(client *Client, msg ircmsg.IrcMessage) (cmdStatus bo
   return
 }
 
+// TODO: Make this cleaner with this in a package
+// Perhaps do command.RegisterCommand(&command.Command{
+//   handler: capHandler
+// })
+
+/************************************************************************************/
+
 //CommandList Holds the list of available commands
 var CommandList = map[string]Command{
+  // capab.go
   "CAP": {
     handler:   capCmdHandler,
     minParams: 1,
   },
+  "NICK": {
+    handler:   nickCmdHandler,
+    minParams: 1,
+  },
+  "USER": {
+    handler:   userCmdHandler,
+    minParams: 1,
+  },
+  "PRIVMSG": {
+    handler:   cmdPrivMsgHandler,
+    minParams: 1,
+  },
+}
+
+/************************************************************************************/
+// Find a better place for these
+
+func userCmdHandler(client *Client, msg ircmsg.IrcMessage) bool {
+  client.state = clientStateCapEnd
+  // command := strings.ToUpper(string(msg.Params[0]))
+  client.ident = msg.Params[0]
+  client.name = msg.Params[3]
+
+  client.server.register(client)
+  return true
+}
+
+/************************************************************************************/
+
+func cmdPrivMsgHandler(client *Client, msg ircmsg.IrcMessage) bool {
+  var message = msg.Params[len(msg.Params)-1]
+  for i, target := range msg.Params {
+    if i > 3 {
+      break
+    }
+    target := client.server.clients.Get(target)
+    if target != nil {
+      client.Send(client.nick, "PRIVMSG", target.nick, fmt.Sprintf(":%s", message))
+    }
+  }
+  return true
 }

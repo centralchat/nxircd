@@ -28,3 +28,13 @@ func (cl *ClientList) Add(client *Client) {
 
   cl.list[lowerName] = client
 }
+
+// Get a client from our client list
+func (cl *ClientList) Get(nick string) (client *Client) {
+  lowerName := strings.ToLower(nick)
+  cl.lock.Lock()
+  defer cl.lock.Unlock()
+
+  client = cl.list[lowerName]
+  return
+}

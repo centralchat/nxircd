@@ -120,7 +120,17 @@ func (server *Server) listen(addr string) (listener net.Listener, err error) {
 }
 
 func (server *Server) register(client *Client) {
+  if client.state == clientStateCapNeg {
+    return
+  }
+  client.Register()
 
+  client.Send(server.name, RPL_WELCOME, client.nick, fmt.Sprintf("Welcome to the Internet Relay Network %s", client.nick))
+  client.Send(server.name, RPL_YOURHOST, client.nick, fmt.Sprintf("Your host is %s, running version %s", server.name, VER_STRING))
+  client.Send(server.name, RPL_CREATED, client.nick, fmt.Sprintf("This server was created %s", server.ctime.Format(time.RFC1123)))
+  client.Send(server.name, RPL_MYINFO, client.nick, server.name, VER_STRING, "", "")
+
+  fmt.Printf("Client registered [%s]", client.nick)
 }
 
 /**************************************************************/

@@ -1,7 +1,7 @@
 package ircd
 
 import (
-  "fmt"
+  "strings"
 )
 import "github.com/DanielOaks/girc-go/ircmsg"
 
@@ -15,24 +15,29 @@ type Capab string
 type CapabSet map[Capab]bool
 
 func capCmdHandler(client *Client, msg ircmsg.IrcMessage) bool {
+  command := strings.ToUpper(msg.Params[0])
+
   client.state = clientStateCapStart
+
   server := client.server
 
-  switch msg.Params[0] {
+  switch command {
   case "LS":
     if !client.isRegistered {
       client.state = clientStateCapNeg
     }
 
-    client.Send(server.name, "CAP", client.nick, "", "")
+    if len(msg.Params) > 1 && msg.Params[1] == "302" {
+      client.capVersion = 302
+    }
 
+    client.Send(server.name, "CAP", command, string(client.capVersion))
   case "END":
     if client.isRegistered {
       client.state = clientStateCapEnd
       client.server.register(client)
     }
   }
-  fmt.Printf("%s\n", msg.Params[0])
 
   return true
 }

@@ -30,6 +30,8 @@ type Client struct {
   name  string
   state int
 
+  capVersion int
+
   realHost   string
   remoteAddr net.Addr
 
@@ -93,9 +95,6 @@ func (client *Client) Send(prefix string, command string, params ...string) (err
   var line string
 
   message := ircmsg.MakeMessage(nil, prefix, command, params...)
-
-  fmt.Printf("Send %s %s %x\n", prefix, command, params)
-
   line, err = message.LineMaxLen(512, 512)
   if err != nil {
     fmt.Printf("Send %s\n", err)
@@ -118,6 +117,21 @@ func (client *Client) Reply(reply string) error {
 /**************************************************************/
 
 // SetNick sets for the first time a clients nick
-func SetNick(nick string) {
+func (client *Client) SetNick(nick string) {
+  //TODO: Add nick exists checks
+  if !client.isRegistered {
+    client.nick = nick
+    client.server.clients.Add(client)
+  }
+}
 
+/**************************************************************/
+
+// Register - sets registered status on a client
+func (client *Client) Register() {
+  if client.isRegistered {
+    return
+  }
+  client.isRegistered = true
+  client.state = clientStateReg
 }
