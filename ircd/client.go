@@ -26,7 +26,10 @@ const (
 type Client struct {
   nick  string
   ident string
+
   host  string
+  vhost string
+
   name  string
   state int
 
@@ -35,14 +38,21 @@ type Client struct {
   realHost string
   ip       string
 
-  ctime time.Time
-  atime time.Time
+  ctime    time.Time
+  atime    time.Time
+  pingTime time.Time
 
   server *Server
   socket *Socket
 
   shouldStop   bool
   isRegistered bool
+
+  channels *ChannelList
+  modes    ModeList
+
+  // Masks
+  nickMask string
 }
 
 /**************************************************************/
@@ -56,12 +66,13 @@ func NewClient(server *Server, conn net.Conn) *Client {
   ip, _, _ = net.SplitHostPort(conn.RemoteAddr().String())
 
   client := &Client{
-    ctime:  now,
-    atime:  now,
-    server: server,
-    ip:     ip,
-    socket: NewSocket(conn),
-    state:  clientStateNew,
+    ctime:    now,
+    atime:    now,
+    server:   server,
+    ip:       ip,
+    socket:   NewSocket(conn),
+    state:    clientStateNew,
+    channels: NewChannelList(),
   }
 
   client.run()
@@ -98,6 +109,11 @@ func (client *Client) run() {
 
     _ = cmd.Run(client, msg)
   }
+
+}
+
+func (client *Client) updateMasks() {
+  client.nickMask = fmt.Sprintf("%s!%s@%s", client.nick, client.ident, client.host)
 
 }
 

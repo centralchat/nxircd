@@ -21,6 +21,7 @@ type IrcOpConfig struct {
 // Config is
 type Config struct {
   Name     string
+  Network  string
   LogLevel string
   Listen   []ListenConfig
   IrcOps   []IrcOpConfig

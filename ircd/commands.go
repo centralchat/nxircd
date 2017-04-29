@@ -1,6 +1,9 @@
 package ircd
 
 import (
+  // For later
+  "bytes"
+  "strconv"
   _ "strings"
 )
 
@@ -57,6 +60,23 @@ var CommandList = map[string]Command{
     handler:   cmdPrivMsgHandler,
     minParams: 1,
   },
+  "JOIN": {
+    handler:   cmdJoinHandler,
+    minParams: 1,
+  },
+  "WHO": {
+    handler:   cmdWhoHandler,
+    minParams: 1,
+  },
+  "PING": {
+    handler:   cmdPingHandler,
+    minParams: 0,
+  },
+
+  // "PART": {
+  //   handler:   cmdPartHandler,
+  //   minParams: 1,
+  // },
 }
 
 /************************************************************************************/
@@ -69,6 +89,9 @@ func userCmdHandler(client *Client, msg ircmsg.IrcMessage) bool {
   client.name = msg.Params[3]
 
   client.server.register(client)
+
+  client.updateMasks()
+
   return true
 }
 
@@ -81,10 +104,58 @@ func cmdPrivMsgHandler(client *Client, msg ircmsg.IrcMessage) bool {
       break
     }
 
-    target := client.server.clients.Find(target)
-    if target != nil {
-      target.Send(client.nick, "PRIVMSG", target.nick, message)
+    cli := client.server.clients.Find(target)
+    if cli != nil {
+      cli.Send(client.nick, "PRIVMSG", cli.nick, message)
+      continue
+    }
+
+    channel := client.server.channels.Find(target)
+    if channel != nil {
+      channel.SendToAllButPrefix(client.nick, "PRIVMSG", channel.name, message)
     }
   }
+  return true
+}
+
+/************************************************************************************/
+
+func cmdJoinHandler(client *Client, msg ircmsg.IrcMessage) bool {
+  channel := client.server.channels.Find(string(msg.Params[0]))
+  if channel == nil {
+    channel = NewChannel(msg.Params[0], client.server)
+    client.server.channels.Add(channel)
+  }
+
+  channel.Join(client)
+  return true
+}
+
+/************************************************************************************/
+
+func cmdWhoHandler(client *Client, msg ircmsg.IrcMessage) bool {
+  var buf bytes.Buffer
+
+  channel := client.server.channels.Find(string(msg.Params[0]))
+  if channel == nil {
+    return false
+  }
+
+  for client := range channel.clients {
+    buf.WriteString(client.nick)
+    buf.WriteString(" ")
+  }
+
+  client.Send(client.server.name, RPL_NAMREPLY, client.nick, "=", channel.name, buf.String())
+  client.Send(client.server.name, RPL_ENDOFWHO, channel.name, "End of /Who list")
+
+  return true
+}
+
+/************************************************************************************/
+
+func cmdPingHandler(client *Client, msg ircmsg.IrcMessage) bool {
+  client.pingTime = client.server.time
+  client.Send(client.server.name, "PONG", client.nick, msg.Params...)
   return true
 }

@@ -27,10 +27,13 @@ type Listener map[string]net.Listener
 type Server struct {
   name string
 
-  ctime  time.Time
+  ctime time.Time
+  time  time.Time
+
   config *Config
 
-  clients *ClientList
+  clients  *ClientList
+  channels *ChannelList
 
   connections chan net.Conn
   signals     chan os.Signal
@@ -47,6 +50,7 @@ func NewServer(config *Config) *Server {
     ctime:       time.Now(),
     config:      config,
     clients:     NewClientList(),
+    channels:    NewChannelList(),
     connections: make(chan net.Conn),
     signals:     make(chan os.Signal, len(ServerSignals)),
     listeners:   make(Listener, 15),
@@ -68,6 +72,8 @@ func NewServer(config *Config) *Server {
 func (server *Server) Run() {
   done := false
   for !done {
+    server.time = time.Now()
+
     select {
     case <-server.signals:
       fmt.Printf("Recieved Signal?")
@@ -132,7 +138,8 @@ func (server *Server) register(client *Client) {
   client.Send(server.name, RPL_WELCOME, client.nick, fmt.Sprintf("Welcome to the Internet Relay Network %s", client.nick))
   client.Send(server.name, RPL_YOURHOST, client.nick, fmt.Sprintf("Your host is %s, running version %s", server.name, VER_STRING))
   client.Send(server.name, RPL_CREATED, client.nick, fmt.Sprintf("This server was created %s", server.ctime.Format(time.RFC1123)))
-  client.Send(server.name, RPL_MYINFO, client.nick, server.name, VER_STRING, "", "")
+  client.Send(server.name, RPL_MYINFO, client.nick, server.name, VER_STRING)
+  client.Send(server.name, RPL_ISUPPORT, client.nick)
 
   server.log.Info("Client registered [%s]", client.nick)
 }
