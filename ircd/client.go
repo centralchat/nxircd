@@ -47,12 +47,14 @@ type Client struct {
 
   shouldStop   bool
   isRegistered bool
+  useVhost     bool
 
   channels *ChannelList
   modes    ModeList
 
   // Masks
   nickMask string
+  realMask string
 }
 
 /**************************************************************/
@@ -88,10 +90,10 @@ func (client *Client) run() {
 
   for err == nil {
     if line, err = client.socket.Read(); err != nil {
-      fmt.Printf("Socket error: %x", err)
+      client.socket.closed = true
+      client.Quit("Read error")
       break
     }
-
     client.server.log.Debug("<-- %s\n", line)
 
     // TODO: Handle this error
@@ -115,8 +117,8 @@ func (client *Client) run() {
 /**************************************************************/
 
 func (client *Client) updateMasks() {
-  client.nickMask = fmt.Sprintf("%s!%s@%s", client.nick, client.ident, client.host)
-
+  client.nickMask = fmt.Sprintf("%s!%s@%s", client.nick, client.ident, client.ip)
+  client.realMask = fmt.Sprintf("%s!%s@%s", client.nick, client.ident, client.ip)
 }
 
 /**************************************************************/
@@ -188,8 +190,8 @@ func (client *Client) Quit(message string) {
   for _, channel := range client.channels.list {
     client.server.log.Debug("Removing: %s from %s", client.nick, channel.name)
 
-    channel.Remove(client)                     // This locks
-    channel.Send(client.nick, "QUIT", message) // This locks
+    channel.Remove(client)                         // This locks
+    channel.Send(client.nickMask, "QUIT", message) // This locks
   }
   client.server.clients.Delete(client)
   client.socket.Close()

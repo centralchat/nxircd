@@ -11,7 +11,7 @@ import (
 )
 
 import (
-// "nxircd/client"
+  "nxircd/config"
 )
 
 var (
@@ -30,7 +30,7 @@ type Server struct {
   ctime time.Time
   time  time.Time
 
-  config *Config
+  config *config.Config
 
   clients  *ClientList
   channels *ChannelList
@@ -45,7 +45,7 @@ type Server struct {
 /**************************************************************/
 
 // NewServer create an instance of server
-func NewServer(config *Config) *Server {
+func NewServer(config *config.Config) *Server {
   server := &Server{
     ctime:       time.Now(),
     config:      config,
@@ -89,7 +89,7 @@ func (server *Server) Run() {
 /**************************************************************/
 
 func (server *Server) bindListeners() {
-  for _, addr := range server.config.listenersFor("ircd") {
+  for _, addr := range server.config.ListenersFor("ircd") {
     if addr.Type == "ircd" {
       listener, err := server.listen(addr.Host)
       if err != nil {
@@ -99,7 +99,7 @@ func (server *Server) bindListeners() {
 
       server.listeners[addr.Host] = listener
 
-      fmt.Printf("Listening (%s): %s\n", addr.Type, addr.Host)
+      server.log.Info("Listening (%s): %s\n", addr.Type, addr.Host)
     }
   }
 }
@@ -128,6 +128,8 @@ func (server *Server) listen(addr string) (listener net.Listener, err error) {
 
   return
 }
+
+/**************************************************************/
 
 func (server *Server) register(client *Client) {
   if client.state == clientStateCapNeg {

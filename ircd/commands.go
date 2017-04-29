@@ -29,6 +29,8 @@ func (command *Command) Run(client *Client, msg ircmsg.IrcMessage) (cmdStatus bo
     return false
   }
 
+  client.server.log.Debug("Running command: %s", msg.Command)
+
   cmdStatus = command.handler(client, msg)
   return
 }
@@ -98,6 +100,8 @@ func userCmdHandler(client *Client, msg ircmsg.IrcMessage) bool {
   client.server.register(client)
 
   client.updateMasks()
+
+  client.server.log.Info("Client Connected: %s", client.realMask)
 
   return true
 }

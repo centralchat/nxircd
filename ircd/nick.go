@@ -14,14 +14,15 @@ func nickCmdHandler(client *Client, msg ircmsg.IrcMessage) bool {
 
   if !client.isRegistered {
     client.SetNick(nicknameRaw)
-    client.server.log.Info("Client Connected: %s [%s]", client.nick, client.ip)
     return true
   }
 
   oldNick := client.nick
 
   client.ChangeNick(nicknameRaw)
-  client.server.log.Info("Client changed nick: %s => %s [%s]", oldNick, client.nick, client.ip)
+  client.updateMasks()
+
+  client.server.log.Info("Client changed nick: %s => %s", oldNick, client.nick)
 
   return true
 }

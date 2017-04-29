@@ -38,7 +38,7 @@ func (channel *Channel) Join(client *Client) {
   channel.clients.Add(client)
   client.channels.Add(channel)
 
-  channel.Send(client.nick, "JOIN", channel.name)
+  channel.Send(client.nickMask, "JOIN", channel.name)
 }
 
 func (channel *Channel) Part(client *Client, message string) {

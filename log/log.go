@@ -1,5 +1,7 @@
 package log
 
+import "github.com/fatih/color"
+
 import (
   "bytes"
   "fmt"
@@ -15,6 +17,29 @@ var levelMap = map[string]int{
   "WARN":  2,
   "INFO":  1,
   "DEBUG": 0,
+}
+
+// var Red = color.New(color.FgRed).SprintFunc()
+// var Blue = color.New(color.FgBlue).SprintFunc()
+// var Green = color.New(color.FgGreen).SprintFunc()
+// var Yellow = color.New(color.FgYellow).SprintFunc()
+
+type colorFunc func(...interface{}) string
+
+var Colors = map[string]colorFunc{
+  "RED":    color.New(color.FgRed).SprintFunc(),
+  "BLUE":   color.New(color.FgBlue).SprintFunc(),
+  "GREEN":  color.New(color.FgGreen).SprintFunc(),
+  "YELLOW": color.New(color.FgYellow).SprintFunc(),
+  "CYAN":   color.New(color.FgCyan).SprintFunc(),
+}
+
+var colorMap = map[string]colorFunc{
+  "FATAL": Colors["RED"],
+  "ERROR": Colors["RED"],
+  "WARN":  Colors["YELLOW"],
+  "INFO":  Colors["GREEN"],
+  "DEBUG": Colors["BLUE"],
 }
 
 type Logger struct {
@@ -57,7 +82,7 @@ func (l *Logger) Write(level string, format string, args ...interface{}) {
 
   var buffer bytes.Buffer
 
-  buffer.WriteString(level)
+  buffer.WriteString(colorMap[level](level))
   buffer.WriteString(": ")
   buffer.WriteString(fmt.Sprintf(format, args...))
   l.log.Println(strings.TrimSpace(buffer.String()))
