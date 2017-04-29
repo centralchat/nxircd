@@ -32,10 +32,8 @@ type Client struct {
 
   capVersion int
 
-  realHost   string
-  ip         string
-  port       string
-  remoteAddr net.Addr
+  realHost string
+  ip       string
 
   ctime time.Time
   atime time.Time
@@ -51,19 +49,19 @@ type Client struct {
 
 // NewClient - Create a new client
 func NewClient(server *Server, conn net.Conn) *Client {
+  var ip string
+
   now := time.Now()
 
-  var ip string
   ip, _, _ = net.SplitHostPort(conn.RemoteAddr().String())
 
   client := &Client{
-    ctime:      now,
-    atime:      now,
-    server:     server,
-    ip:         ip,
-    socket:     NewSocket(conn),
-    state:      clientStateNew,
-    remoteAddr: conn.RemoteAddr(),
+    ctime:  now,
+    atime:  now,
+    server: server,
+    ip:     ip,
+    socket: NewSocket(conn),
+    state:  clientStateNew,
   }
 
   client.run()
@@ -82,7 +80,7 @@ func (client *Client) run() {
       fmt.Printf("Socket error: %x", err)
       break
     }
-    fmt.Printf("[%s] <-- %s\n", client.remoteAddr, line)
+    fmt.Printf("[%s] <-- %s\n", client.ip, line)
 
     // TODO: Handle this error
     msg, _ := ircmsg.ParseLineMaxLen(line, 512, 512)
