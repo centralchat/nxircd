@@ -101,7 +101,7 @@ func (server *Server) handleSignal(signal os.Signal) {
       server.log.Info("  Clients:")
 
       for client := range channel.clients {
-        server.log.Info("    %s", client.realMask)
+        server.log.Info("    %s [%s]", client.nickMask, client.ip)
       }
       channel.lock.Unlock()
     }

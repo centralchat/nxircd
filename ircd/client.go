@@ -3,7 +3,8 @@ package ircd
 // TODO: Move this to a package probable
 
 import (
-  _ "crypto"
+  "bytes"
+  "crypto/sha256"
   "fmt"
   "net"
   "strings"
@@ -118,8 +119,28 @@ func (client *Client) run() {
 /**************************************************************/
 
 func (client *Client) updateMasks() {
-  client.nickMask = fmt.Sprintf("%s!%s@%s", client.nick, client.ident, client.ip)
+  client.nickMask = fmt.Sprintf("%s!%s@%s", client.nick, client.ident, client.host)
   client.realMask = fmt.Sprintf("%s!%s@%s", client.nick, client.ident, client.ip)
+}
+
+// super ugly but will improve it later
+/**************************************************************/
+
+func (client *Client) generateHostMask() string {
+  var buffer bytes.Buffer
+
+  h := sha256.New()
+  h.Write([]byte(client.ip))
+  buf := fmt.Sprintf("%x", h.Sum(nil))
+
+  buffer.WriteString(buf[0:5])
+  buffer.WriteString(".")
+  buffer.WriteString(buf[6:11])
+  buffer.WriteString(".")
+  buffer.WriteString(buf[12:17])
+  buffer.WriteString(".IP")
+
+  return buffer.String()
 }
 
 /**************************************************************/
@@ -205,6 +226,8 @@ func (client *Client) Register() {
   if client.isRegistered {
     return
   }
+
+  client.host = client.generateHostMask()
   client.isRegistered = true
   client.state = clientStateReg
 }
