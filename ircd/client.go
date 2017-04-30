@@ -3,6 +3,7 @@ package ircd
 // TODO: Move this to a package probable
 
 import (
+  _ "crypto"
   "fmt"
   "net"
   "strings"

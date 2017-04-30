@@ -17,7 +17,7 @@ import (
 var (
   // ServerSignals - The signals we respond to
   ServerSignals = []os.Signal{syscall.SIGINT, syscall.SIGHUP,
-    syscall.SIGTERM, syscall.SIGQUIT}
+    syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGUSR1}
 )
 
 // Listener short hand type for us
@@ -75,14 +75,37 @@ func (server *Server) Run() {
     server.time = time.Now()
 
     select {
-    case <-server.signals:
-      fmt.Printf("Recieved Signal?")
-      // server.Shutdown()
-      done = true
+    case signal := <-server.signals:
+      if signal != syscall.SIGUSR1 {
+        done = true
+        continue
+      }
 
+      server.handleSignal(signal)
     case conn := <-server.connections:
       go NewClient(server, conn)
     }
+  }
+}
+
+/**************************************************************/
+
+func (server *Server) handleSignal(signal os.Signal) {
+  switch {
+  case signal == syscall.SIGUSR1:
+    server.channels.lock.Lock()
+    for _, channel := range server.channels.list {
+      channel.lock.Lock()
+
+      server.log.Info("Channel: %s", channel.name)
+      server.log.Info("  Clients:")
+
+      for client := range channel.clients {
+        server.log.Info("    %s", client.realMask)
+      }
+      channel.lock.Unlock()
+    }
+    server.channels.lock.Unlock()
   }
 }
 
