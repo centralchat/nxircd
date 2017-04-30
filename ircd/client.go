@@ -183,6 +183,15 @@ func (client *Client) SetNick(nick string) {
 
 /**************************************************************/
 
+func (source *Client) WhoReply(channel *Channel, client *Client) {
+  channelName := channel.name
+  flags := "H"
+
+  source.Send(source.server.name, RPL_WHOREPLY, source.nick, channelName, client.ident, client.host, client.server.name, client.nick, flags, "0 "+client.name)
+}
+
+/**************************************************************/
+
 // ChangeNick changes the nickname of a client
 func (client *Client) ChangeNick(nick string) {
   //TODO: Add nick exists checks

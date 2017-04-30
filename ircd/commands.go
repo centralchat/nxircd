@@ -2,7 +2,7 @@ package ircd
 
 import (
   // For later
-  "bytes"
+  _ "bytes"
   _ "strings"
 )
 
@@ -159,19 +159,18 @@ func cmdPartHandler(client *Client, msg ircmsg.IrcMessage) bool {
 /************************************************************************************/
 
 func cmdWhoHandler(client *Client, msg ircmsg.IrcMessage) bool {
-  var buf bytes.Buffer
+  // var buf bytes.Buffer
 
   channel := client.server.channels.Find(string(msg.Params[0]))
   if channel == nil {
     return false
   }
 
-  for client := range channel.clients {
-    buf.WriteString(client.nick)
-    buf.WriteString(" ")
+  for cli := range channel.clients {
+    client.WhoReply(channel, cli)
   }
 
-  client.Send(client.server.name, RPL_NAMREPLY, client.nick, "=", channel.name, buf.String())
+  // client.Send(client.server.name, RPL_NAMREPLY, client.nick, "=", channel.name, buf.String())
   client.Send(client.server.name, RPL_ENDOFWHO, channel.name, "End of /Who list")
 
   return true
