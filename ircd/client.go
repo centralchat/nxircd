@@ -236,7 +236,9 @@ func (client *Client) Register() {
 
 // CommonClients are all the clients that are in channels with
 // our user
-func (client *Client) CommonClients() (cl ClientList) {
+func (client *Client) CommonClients() *ClientList {
+  cl := NewClientList()
+
   cl.Add(client)
 
   for _, channel := range client.channels.list {
@@ -246,5 +248,5 @@ func (client *Client) CommonClients() (cl ClientList) {
     }
     channel.lock.RUnlock()
   }
-  return
+  return cl
 }
