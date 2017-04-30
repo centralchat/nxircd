@@ -1,8 +1,10 @@
 package ircd
 
 import (
+  "bytes"
   "strings"
   "sync"
+  "time"
 )
 
 import "github.com/DanielOaks/girc-go/ircmsg"
@@ -12,18 +14,25 @@ type ChannelClientList map[*Client]ModeList
 type Channel struct {
   name string
 
+  topic       string
+  ttime       time.Time
+  topicSetter *Client
+
   server  *Server
   clients ChannelClientList
   lock    sync.RWMutex
 
-  modes ModeList
+  hasTopic bool
+  modes    ModeList
 }
 
 func NewChannel(name string, server *Server) *Channel {
   channel := &Channel{
-    name:    name,
-    server:  server,
-    clients: make(ChannelClientList),
+    name:     name,
+    server:   server,
+    hasTopic: false,
+    ttime:    time.Now(),
+    clients:  make(ChannelClientList),
   }
 
   return channel
@@ -39,6 +48,21 @@ func (channel *Channel) Join(client *Client) {
   client.channels.Add(channel)
 
   channel.Send(client.nickMask, "JOIN", channel.name)
+
+  channel.SendTopic(client)
+  channel.Names(client)
+}
+
+func (channel *Channel) Names(source *Client) {
+  var buf bytes.Buffer
+
+  for client := range channel.clients {
+    buf.WriteString(client.nick)
+    buf.WriteString(" ")
+  }
+
+  source.Send(source.server.name, RPL_NAMREPLY, source.nick, "=", channel.name, buf.String())
+  source.Send(source.server.name, RPL_ENDOFWHO, channel.name, "End of /Names list")
 }
 
 func (channel *Channel) Part(client *Client, message string) {
@@ -71,6 +95,13 @@ func (channel *Channel) Send(prefix string, command string, params ...string) (e
   }
 
   return
+}
+
+func (channel *Channel) SendTopic(client *Client) {
+  if channel.hasTopic {
+    client.Send(client.server.name, RPL_TOPIC, channel.name, channel.topicSetter.nick, channel.topic)
+    client.Send(client.server.name, RPL_TOPICTIME, channel.name, string(channel.ttime.Unix()))
+  }
 }
 
 // SendToAllButPrefix TODO: Find a better way to handle this
