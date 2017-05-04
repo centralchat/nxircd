@@ -214,7 +214,11 @@ func (source *Client) WhoReply(channel *Channel, client *Client) {
 	channelName := channel.name
 	flags := "H"
 
-	source.Send(source.server.name, RPL_WHOREPLY, source.nick, channelName, client.ident, *client.vhost, client.server.name, client.nick, flags, "0 "+client.name)
+	cclient := channel.clients[client.nick]
+	flags = flags + cclient.modes.highestSymbol()
+
+	source.Send(source.server.name, RPL_WHOREPLY, source.nick, channelName,
+		client.ident, *client.vhost, client.server.name, client.nick, flags, "0 "+client.name)
 }
 
 /**************************************************************/

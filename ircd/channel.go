@@ -15,6 +15,7 @@ type ChannelClientList map[string]*ChannelClient
 type ChannelClient struct {
 	modes  ModeList
 	client *Client
+	level  int
 }
 
 type ChannelTopic struct {
@@ -82,7 +83,8 @@ func (channel *Channel) IsEmpty() bool {
 func (channel *Channel) Names(source *Client) {
 	var buf bytes.Buffer
 
-	for nick, _ := range channel.clients {
+	for nick, cclient := range channel.clients {
+		buf.WriteString(cclient.modes.highestSymbol())
 		buf.WriteString(nick)
 		buf.WriteString(" ")
 	}
