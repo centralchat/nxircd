@@ -231,7 +231,7 @@ func (client *Client) ChangeNick(nick string) {
 	}
 
 	if cli := client.server.clients.Find(nick); cli != nil {
-		client.Send(client.server.name, ERR_NICKNAMEINUSE, client.nick, fmt.Sprintf("%s is in use", nick))
+		client.Send(client.server.name, ERR_NICKNAMEINUSE, client.nick, fmt.Sprintf("%s", nick))
 		return
 	}
 
