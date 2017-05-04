@@ -107,7 +107,7 @@ func (channel *Channel) Send(prefix string, command string, params ...string) (e
 func (channel *Channel) SendTopic(client *Client) {
 	if channel.topic != nil {
 		client.SendNumeric(RPL_TOPIC, channel.name, *channel.topic.text)
-		client.SendNumeric(RPL_TOPICTIME, channel.topic.setter.nick, strconv.FormatInt(channel.topic.ctime.Unix(), 10))
+		client.SendNumeric(RPL_TOPICTIME, channel.name, channel.topic.setter.nick, strconv.FormatInt(channel.topic.ctime.Unix(), 10))
 	}
 }
 
