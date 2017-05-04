@@ -82,6 +82,14 @@ var CommandList = map[string]Command{
 		handler:   cmdWhoHandler,
 		minParams: 1,
 	},
+	"WHOIS": {
+		handler:   cmdWhoisHandler,
+		minParams: 1,
+	},
+	"NAMES": {
+		handler:   cmdNamesHandler,
+		minParams: 1,
+	},
 	"PING": {
 		handler:   cmdPingHandler,
 		minParams: 0,
@@ -97,7 +105,6 @@ var CommandList = map[string]Command{
 	// },
 }
 
-/************************************************************************************/
 // Find a better place for these
 
 func userCmdHandler(client *Client, msg ircmsg.IrcMessage) bool {
@@ -114,8 +121,6 @@ func userCmdHandler(client *Client, msg ircmsg.IrcMessage) bool {
 
 	return true
 }
-
-/************************************************************************************/
 
 func cmdPrivMsgHandler(client *Client, msg ircmsg.IrcMessage) bool {
 	var message = msg.Params[len(msg.Params)-1]
@@ -138,8 +143,6 @@ func cmdPrivMsgHandler(client *Client, msg ircmsg.IrcMessage) bool {
 	return true
 }
 
-/************************************************************************************/
-
 func cmdJoinHandler(client *Client, msg ircmsg.IrcMessage) bool {
 	channel := client.server.channels.Find(string(msg.Params[0]))
 	if channel == nil {
@@ -151,21 +154,17 @@ func cmdJoinHandler(client *Client, msg ircmsg.IrcMessage) bool {
 	return true
 }
 
-/************************************************************************************/
-
 func cmdPartHandler(client *Client, msg ircmsg.IrcMessage) bool {
 	channel := client.channels.Find(string(msg.Params[0]))
 
 	if channel == nil {
-		client.Send(client.server.name, ERR_NOTONCHANNEL, msg.Params[0], "You are not currently on the channel")
+		client.SendNumeric(ERR_NOTONCHANNEL, msg.Params[0], "You are not currently on the channel")
 		return false
 	}
 
 	channel.Part(client, msg.Params[1])
 	return true
 }
-
-/************************************************************************************/
 
 func cmdWhoHandler(client *Client, msg ircmsg.IrcMessage) bool {
 	// var buf bytes.Buffer
@@ -179,12 +178,22 @@ func cmdWhoHandler(client *Client, msg ircmsg.IrcMessage) bool {
 		client.WhoReply(channel, cli)
 	}
 
-	client.Send(client.server.name, RPL_ENDOFWHO, channel.name, "End of /Who list")
+	client.SendNumeric(RPL_ENDOFWHO, channel.name, "End of /WHO list")
 
 	return true
 }
 
-/************************************************************************************/
+func cmdWhoisHandler(client *Client, msg ircmsg.IrcMessage) bool {
+	target := client.server.clients.Find(msg.Params[0])
+	if target == nil {
+		client.SendNumeric(ERR_NOSUCHNICK, msg.Params[0], "Client does not exist")
+		return false
+	}
+
+	client.Whois(target)
+
+	return true
+}
 
 func cmdPingHandler(client *Client, msg ircmsg.IrcMessage) bool {
 	client.pingTime = client.server.time
@@ -192,10 +201,19 @@ func cmdPingHandler(client *Client, msg ircmsg.IrcMessage) bool {
 	return true
 }
 
-/************************************************************************************/
-
 func cmdQuitHandler(client *Client, msg ircmsg.IrcMessage) bool {
 	client.Quit(msg.Params[0])
+	return true
+}
+
+func cmdNamesHandler(client *Client, msg ircmsg.IrcMessage) bool {
+	channel := client.server.channels.Find(string(msg.Params[0]))
+	if channel == nil {
+		client.SendNumeric(ERR_NOSUCHCHANNEL, "No such channel.")
+		return false
+	}
+
+	channel.Names(client)
 	return true
 }
 

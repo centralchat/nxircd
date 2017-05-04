@@ -56,6 +56,7 @@ func (channel *Channel) Join(client *Client) {
 	channel.Names(client)
 }
 
+// Send Names list to a user.
 func (channel *Channel) Names(source *Client) {
 	var buf bytes.Buffer
 
@@ -64,8 +65,8 @@ func (channel *Channel) Names(source *Client) {
 		buf.WriteString(" ")
 	}
 
-	source.Send(source.server.name, RPL_NAMREPLY, source.nick, "=", channel.name, buf.String())
-	source.Send(source.server.name, RPL_ENDOFNAMES, channel.name, "End of /NAMES list")
+	source.SendNumeric(RPL_NAMREPLY, "=", channel.name, buf.String())
+	source.SendNumeric(RPL_ENDOFNAMES, channel.name, "End of /NAMES list")
 }
 
 // Part a client from a channel

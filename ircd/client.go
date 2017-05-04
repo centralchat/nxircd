@@ -29,8 +29,9 @@ type Client struct {
 	nick  string
 	ident string
 
-	host  string
-	vhost string
+	host     string
+	hostMask string
+	vhost    string
 
 	name  string
 	state int
@@ -84,11 +85,23 @@ func NewClient(server *Server, conn net.Conn) *Client {
 	return client
 }
 
-/**************************************************************/
+func (client *Client) preFlight() {
+	client.Notice("AUTH", "*** Looking up your hostname.")
+	names, err := net.LookupAddr(client.ip)
+	if err != nil {
+		client.Notice("AUTH", "*** Could not find your hostname.")
+		client.host = client.ip
+	} else {
+		client.Notice("AUTH", "*** Hostname found")
+		client.host = names[0]
+	}
+}
 
 func (client *Client) run() {
 	var err error
 	var line string
+
+	client.preFlight()
 
 	for err == nil {
 		if line, err = client.socket.Read(); err != nil {
@@ -119,8 +132,8 @@ func (client *Client) run() {
 /**************************************************************/
 
 func (client *Client) updateMasks() {
-	client.nickMask = fmt.Sprintf("%s!%s@%s", client.nick, client.ident, client.host)
-	client.realMask = fmt.Sprintf("%s!%s@%s", client.nick, client.ident, client.ip)
+	client.nickMask = fmt.Sprintf("%s!%s@%s", client.nick, client.ident, client.vhost)
+	client.realMask = fmt.Sprintf("%s!%s@%s", client.nick, client.ident, client.host)
 }
 
 // super ugly but will improve it later
@@ -195,7 +208,7 @@ func (source *Client) WhoReply(channel *Channel, client *Client) {
 	channelName := channel.name
 	flags := "H"
 
-	source.Send(source.server.name, RPL_WHOREPLY, source.nick, channelName, client.ident, client.host, client.server.name, client.nick, flags, "0 "+client.name)
+	source.Send(source.server.name, RPL_WHOREPLY, source.nick, channelName, client.ident, client.vhost, client.server.name, client.nick, flags, "0 "+client.name)
 }
 
 /**************************************************************/
@@ -244,9 +257,46 @@ func (client *Client) Register() {
 		return
 	}
 
-	client.host = client.generateHostMask()
+	client.hostMask = client.generateHostMask()
+
+	// Alias for ban matching
+	client.vhost = client.hostMask
+
 	client.isRegistered = true
 	client.state = clientStateReg
+}
+
+// Send the client whois of target
+func (client *Client) Whois(target *Client) {
+	var buf bytes.Buffer
+
+	client.SendNumeric(RPL_WHOISUSER, target.nick, target.ident, target.vhost, "*", target.name)
+	client.SendNumeric(RPL_WHOISMODES, target.nick, "is using modes ")
+
+	client.SendNumeric(RPL_WHOISHOST, target.nick, fmt.Sprintf("is connecting from *@%s %s", target.host, target.ip))
+
+	client.channels.lock.RLock()
+	defer client.channels.lock.RUnlock()
+
+	for _, channel := range client.channels.list {
+		buf.WriteString(channel.name)
+		buf.WriteString(" ")
+	}
+
+	if buf.Len() > 0 {
+		client.SendNumeric(RPL_WHOISCHANNELS, target.nick, buf.String())
+	}
+
+	client.SendNumeric(RPL_WHOISSERVER, target.nick, client.server.name, client.server.network)
+
+	// RPL_WHOISSECURE
+
+	client.SendNumeric(RPL_ENDOFWHOIS, target.nick, ":End of /WHOIS list")
+}
+
+// Notice send a notice to the client
+func (client *Client) Notice(params ...string) {
+	client.Send(client.server.name, "NOTICE", params...)
 }
 
 /**************************************************************/
