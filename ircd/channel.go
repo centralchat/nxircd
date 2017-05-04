@@ -13,7 +13,7 @@ import (
 type ChannelClientList map[string]*ChannelClient
 
 type ChannelClient struct {
-	modes  []rune
+	modes  ModeList
 	client *Client
 }
 
@@ -48,16 +48,34 @@ func NewChannel(name string, server *Server) *Channel {
 // Join a client to a channel
 func (channel *Channel) Join(client *Client) {
 
-	channel.lock.Lock()
-	defer channel.lock.Unlock()
+	empty := channel.IsEmpty()
 
+	channel.lock.Lock()
 	channel.clients.Add(client)
 	client.channels.Add(channel)
+	channel.lock.Unlock()
 
 	channel.Send(client.nickMask, "JOIN", channel.name)
-
 	channel.SendTopicNumeric(client)
 	channel.Names(client)
+
+	if empty {
+		// TODO: CLean up
+		channel.SetMode(client, "o")
+	}
+}
+
+func (channel *Channel) SetMode(client *Client, modeChar string) {
+	mode := ChannelModes.Find(modeChar)
+	cclient := channel.clients[client.nick]
+	cclient.modes[modeChar] = *mode
+	channel.Send(client.server.name, "MODE", channel.name, "+"+modeChar, client.nick, "")
+}
+
+// IsEmpty Returns true of the channel is empty and no clients are in it
+// We should make this more robust for services going forward
+func (channel *Channel) IsEmpty() bool {
+	return (len(channel.clients) == 0)
 }
 
 // Send Names list to a user.
@@ -141,6 +159,7 @@ func (channel *Channel) SendToAllButPrefix(prefix string, command string, params
 func (ccl ChannelClientList) Add(client *Client) {
 	ccl[client.nick] = &ChannelClient{
 		client: client,
+		modes:  make(ModeList),
 	}
 }
 

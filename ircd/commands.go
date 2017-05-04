@@ -90,6 +90,10 @@ var CommandList = map[string]Command{
 		handler:   cmdNamesHandler,
 		minParams: 1,
 	},
+	"MODE": {
+		handler:   cmdModeHandler,
+		minParams: 1,
+	},
 	"PING": {
 		handler:   cmdPingHandler,
 		minParams: 0,
