@@ -10,7 +10,12 @@ import (
 	"github.com/DanielOaks/girc-go/ircmsg"
 )
 
-type ChannelClientList map[*Client]ModeList
+type ChannelClientList map[string]*ChannelClient
+
+type ChannelClient struct {
+	modes  []rune
+	client *Client
+}
 
 type ChannelTopic struct {
 	text   *string
@@ -28,7 +33,6 @@ type Channel struct {
 	lock    sync.RWMutex
 
 	hasTopic bool
-	modes    ModeList
 }
 
 func NewChannel(name string, server *Server) *Channel {
@@ -52,7 +56,7 @@ func (channel *Channel) Join(client *Client) {
 
 	channel.Send(client.nickMask, "JOIN", channel.name)
 
-	channel.SendTopic(client)
+	channel.SendTopicNumeric(client)
 	channel.Names(client)
 }
 
@@ -60,8 +64,8 @@ func (channel *Channel) Join(client *Client) {
 func (channel *Channel) Names(source *Client) {
 	var buf bytes.Buffer
 
-	for client := range channel.clients {
-		buf.WriteString(client.nick)
+	for nick, _ := range channel.clients {
+		buf.WriteString(nick)
 		buf.WriteString(" ")
 	}
 
@@ -71,8 +75,8 @@ func (channel *Channel) Names(source *Client) {
 
 // Part a client from a channel
 func (channel *Channel) Part(client *Client, message string) {
+	channel.Send(client.nickMask, "PART", channel.name, message)
 	channel.Remove(client)
-	channel.Send(client.nick, "PART", channel.name, message)
 }
 
 // Remove a client from a channel
@@ -97,15 +101,15 @@ func (channel *Channel) Send(prefix string, command string, params ...string) (e
 
 	channel.server.log.Debug("--> %s\n", strings.TrimRight(line, "\r\n"))
 
-	for client := range channel.clients {
-		client.socket.Write(line)
+	for _, cclient := range channel.clients {
+		cclient.client.socket.Write(line)
 	}
 
 	return
 }
 
 // SendTopic sends a TOPIC Numeric to a user.
-func (channel *Channel) SendTopic(client *Client) {
+func (channel *Channel) SendTopicNumeric(client *Client) {
 	if channel.topic != nil {
 		client.SendNumeric(RPL_TOPIC, channel.name, *channel.topic.text)
 		client.SendNumeric(RPL_TOPICTIME, channel.name, channel.topic.setter.nick, strconv.FormatInt(channel.topic.ctime.Unix(), 10))
@@ -125,9 +129,9 @@ func (channel *Channel) SendToAllButPrefix(prefix string, command string, params
 
 	channel.server.log.Debug("--> %s\n", strings.TrimRight(line, "\r\n"))
 
-	for client := range channel.clients {
-		if client.nick != prefix {
-			client.socket.Write(line)
+	for nick, cclient := range channel.clients {
+		if nick != prefix {
+			cclient.client.socket.Write(line)
 		}
 	}
 
@@ -135,9 +139,11 @@ func (channel *Channel) SendToAllButPrefix(prefix string, command string, params
 }
 
 func (ccl ChannelClientList) Add(client *Client) {
-	ccl[client] = make(ModeList)
+	ccl[client.nick] = &ChannelClient{
+		client: client,
+	}
 }
 
 func (ccl ChannelClientList) Delete(client *Client) {
-	delete(ccl, client)
+	delete(ccl, client.nick)
 }

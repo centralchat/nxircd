@@ -100,7 +100,8 @@ func (server *Server) handleSignal(signal os.Signal) {
 			server.log.Info("Channel: %s", channel.name)
 			server.log.Info("  Clients:")
 
-			for client := range channel.clients {
+			for _, cclient := range channel.clients {
+				client := cclient.client
 				server.log.Info("    %s [%s]", client.nickMask, client.ip)
 			}
 			channel.lock.Unlock()

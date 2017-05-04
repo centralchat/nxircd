@@ -98,11 +98,6 @@ var CommandList = map[string]Command{
 		handler:   cmdQuitHandler,
 		minParams: 1,
 	},
-
-	// "PART": {
-	//   handler:   cmdPartHandler,
-	//   minParams: 1,
-	// },
 }
 
 // Find a better place for these
@@ -171,11 +166,12 @@ func cmdWhoHandler(client *Client, msg ircmsg.IrcMessage) bool {
 
 	channel := client.server.channels.Find(string(msg.Params[0]))
 	if channel == nil {
+		client.SendNumeric(ERR_NOSUCHCHANNEL, msg.Params[0], "No such channel.")
 		return false
 	}
 
-	for cli := range channel.clients {
-		client.WhoReply(channel, cli)
+	for _, ccli := range channel.clients {
+		client.WhoReply(channel, ccli.client)
 	}
 
 	client.SendNumeric(RPL_ENDOFWHO, channel.name, "End of /WHO list")
@@ -224,6 +220,11 @@ func cmdTopicHandler(client *Client, msg ircmsg.IrcMessage) bool {
 		return false
 	}
 
+	if len(msg.Params) == 1 {
+		channel.SendTopicNumeric(client)
+		return true
+	}
+
 	channel.topic = &ChannelTopic{
 		text:   &msg.Params[1],
 		ctime:  time.Now(),
@@ -233,8 +234,7 @@ func cmdTopicHandler(client *Client, msg ircmsg.IrcMessage) bool {
 	channel.lock.RLock()
 	defer channel.lock.RUnlock()
 
-	for client := range channel.clients {
-		channel.SendTopic(client)
-	}
+	channel.Send(client.nick, "TOPIC", channel.name, *channel.topic.text)
+
 	return true
 }

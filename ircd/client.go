@@ -29,17 +29,15 @@ type Client struct {
 	nick  string
 	ident string
 
-	host     string
+	host     *string
 	hostMask string
-	vhost    string
+	vhost    *string
+	ip       *string
 
 	name  string
 	state int
 
 	capVersion int
-
-	realHost string
-	ip       string
 
 	ctime    time.Time
 	atime    time.Time
@@ -53,7 +51,6 @@ type Client struct {
 	useVhost     bool
 
 	channels *ChannelList
-	modes    ModeList
 
 	// Masks
 	nickMask string
@@ -74,7 +71,7 @@ func NewClient(server *Server, conn net.Conn) *Client {
 		ctime:    now,
 		atime:    now,
 		server:   server,
-		ip:       ip,
+		ip:       &ip,
 		socket:   NewSocket(conn),
 		state:    clientStateNew,
 		channels: NewChannelList(),
@@ -87,21 +84,19 @@ func NewClient(server *Server, conn net.Conn) *Client {
 
 func (client *Client) preFlight() {
 	client.Notice("AUTH", "*** Looking up your hostname.")
-	names, err := net.LookupAddr(client.ip)
+	names, err := net.LookupAddr(*client.ip)
 	if err != nil {
 		client.Notice("AUTH", "*** Could not find your hostname.")
 		client.host = client.ip
 	} else {
 		client.Notice("AUTH", "*** Hostname found")
-		client.host = names[0]
+		client.host = &names[0]
 	}
 }
 
 func (client *Client) run() {
 	var err error
 	var line string
-
-	client.preFlight()
 
 	for err == nil {
 		if line, err = client.socket.Read(); err != nil {
@@ -129,11 +124,20 @@ func (client *Client) run() {
 
 }
 
+func (client *Client) realHost() string {
+	host := client.ip
+	if client.host != nil {
+		host = client.host
+	}
+	return *host
+}
+
 /**************************************************************/
 
 func (client *Client) updateMasks() {
-	client.nickMask = fmt.Sprintf("%s!%s@%s", client.nick, client.ident, client.vhost)
-	client.realMask = fmt.Sprintf("%s!%s@%s", client.nick, client.ident, client.host)
+
+	client.nickMask = fmt.Sprintf("%s!%s@%s", client.nick, client.ident, *client.vhost)
+	client.realMask = fmt.Sprintf("%s!%s@%s", client.nick, client.ident, client.realHost())
 }
 
 // super ugly but will improve it later
@@ -143,7 +147,8 @@ func (client *Client) generateHostMask() string {
 	var buffer bytes.Buffer
 
 	h := sha256.New()
-	h.Write([]byte(client.ip))
+
+	h.Write([]byte(client.realHost()))
 	buf := fmt.Sprintf("%x", h.Sum(nil))
 
 	buffer.WriteString(buf[0:5])
@@ -151,7 +156,8 @@ func (client *Client) generateHostMask() string {
 	buffer.WriteString(buf[6:11])
 	buffer.WriteString(".")
 	buffer.WriteString(buf[12:17])
-	buffer.WriteString(".IP")
+	buffer.WriteString(".")
+	buffer.WriteString(buf[18:23])
 
 	return buffer.String()
 }
@@ -208,7 +214,7 @@ func (source *Client) WhoReply(channel *Channel, client *Client) {
 	channelName := channel.name
 	flags := "H"
 
-	source.Send(source.server.name, RPL_WHOREPLY, source.nick, channelName, client.ident, client.vhost, client.server.name, client.nick, flags, "0 "+client.name)
+	source.Send(source.server.name, RPL_WHOREPLY, source.nick, channelName, client.ident, *client.vhost, client.server.name, client.nick, flags, "0 "+client.name)
 }
 
 /**************************************************************/
@@ -257,23 +263,26 @@ func (client *Client) Register() {
 		return
 	}
 
+	client.preFlight()
+
+	// Keep around for ban matching
 	client.hostMask = client.generateHostMask()
 
-	// Alias for ban matching
-	client.vhost = client.hostMask
+	// Alias for everyday use
+	client.vhost = &client.hostMask
 
 	client.isRegistered = true
 	client.state = clientStateReg
 }
 
-// Send the client whois of target
+// Whois send the client whois of target
 func (client *Client) Whois(target *Client) {
 	var buf bytes.Buffer
 
-	client.SendNumeric(RPL_WHOISUSER, target.nick, target.ident, target.vhost, "*", target.name)
+	client.SendNumeric(RPL_WHOISUSER, target.nick, target.ident, *target.vhost, "*", target.name)
 	client.SendNumeric(RPL_WHOISMODES, target.nick, "is using modes ")
 
-	client.SendNumeric(RPL_WHOISHOST, target.nick, fmt.Sprintf("is connecting from *@%s %s", target.host, target.ip))
+	client.SendNumeric(RPL_WHOISHOST, target.nick, fmt.Sprintf("is connecting from *@%s %s", target.realHost(), *target.ip))
 
 	client.channels.lock.RLock()
 	defer client.channels.lock.RUnlock()
@@ -310,8 +319,8 @@ func (client *Client) CommonClients() *ClientList {
 
 	for _, channel := range client.channels.list {
 		channel.lock.RLock()
-		for c := range channel.clients {
-			cl.Add(c)
+		for _, c := range channel.clients {
+			cl.Add(c.client)
 		}
 		channel.lock.RUnlock()
 	}
