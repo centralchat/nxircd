@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 )
 
@@ -53,12 +54,15 @@ func New(configFile string) (*Config, error) {
 }
 
 // ListenersFor -
-func (config *Config) ListenersFor(typ string) (listeners []Listen) {
-	listeners = []Listen{}
+func (config *Config) ListenersFor(typ string) []Listen {
+	listeners := []Listen{}
+
+	fmt.Println("--", config.Listen)
+
 	for _, listener := range config.Listen {
 		if listener.Type == typ {
 			listeners = append(listeners, listener)
 		}
 	}
-	return
+	return listeners
 }

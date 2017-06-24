@@ -36,5 +36,4 @@ func TestListenersFor(t *testing.T) {
 			t.Fatalf("Expected auth on listner web1 to be enabled")
 		}
 	})
-
 }
