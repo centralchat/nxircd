@@ -1,17 +1,25 @@
 machine:
   environment:
-    PATH: "/usr/local/go/bin:/usr/local/go_workspace/bin:~/.go_workspace/bin:${PATH}"
-    GOPATH: "${HOME}/.go_workspace:/usr/local/go_workspace:${HOME}/.go_project"
+    FIRST_GOPATH: "$(echo ${GOPATH} | cut -d: -f1)"
+    REPOSITORY_DOMAIN: github.com
+    LINK_DESTINATION: ${FIRST_GOPATH}/src/${REPOSITORY_DOMAIN}/${CIRCLE_USERNAME}/${CIRCLE_PROJECT_REPONAME}
+
+checkout:
+  post:
+    - ln -sfv ${HOME}/${CIRCLE_PROJECT_REPONAME} ${LINK_DESTINATION}
 
 dependencies:
   override:
-    - mkdir -p ~/.go_project/src/github.com/${CIRCLE_PROJECT_USERNAME}
-    - ln -s ${HOME}/${CIRCLE_PROJECT_REPONAME} ${HOME}/.go_project/src/github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}
-    # './...' is a relative pattern which means all subdirectories
-  - go get -t -d -v ./...
-  - go build -v
+    - make deps
+    - make deps-release
 
 test:
   override:
-    # './...' is a relative pattern which means all subdirectories
-    - go test -v -race ./...
+    - make test
+
+deployment:
+  release:
+    branch: master
+    commands:
+      - make dist
+      - make clean
