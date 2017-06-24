@@ -6,6 +6,7 @@ deps:
 deps-release:
 
 build:
+	mkdir -p $GOPATH/src
 	mkdir -p $PWD/dist/
 	go build -verbose -output="dist/nxircd_${VERSION}_{{.OS}}_{{.Arch}}"
 

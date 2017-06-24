@@ -2,10 +2,11 @@ machine:
   environment:
     FIRST_GOPATH: "$(echo ${GOPATH} | cut -d: -f1)"
     REPOSITORY_DOMAIN: github.com
-    LINK_DESTINATION: ${FIRST_GOPATH}/src/${REPOSITORY_DOMAIN}/${CIRCLE_USERNAME}/${CIRCLE_PROJECT_REPONAME}
+    LINK_DESTINATION: ${FIRST_GOPATH}/src/${REPOSITORY_DOMAIN}/${CIRCLE_PROJECT_REPONAME}
 
 checkout:
   post:
+    - mkdir -p $FIRST_GOPATH/src
     - ln -sfv ${HOME}/${CIRCLE_PROJECT_REPONAME} ${LINK_DESTINATION}
 
 dependencies:
