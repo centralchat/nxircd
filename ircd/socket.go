@@ -4,21 +4,14 @@ import (
 	"bufio"
 	"io"
 	"net"
-)
 
-// Socket Holds the basic methods for an ircd.Socket
-// this allows us to override for non external clients
-// like services etc
-type Socket interface {
-	Write(string) (int, error) // Write to the socket
-	Read() (string, error)     // Read from the socket
-	Close()
-}
+	"nxircd/interfaces"
+)
 
 // IRCSocket extends Socket interface
 // and holds information regarding a IRC Connection
 type IRCSocket struct {
-	Socket
+	interfaces.Socket
 
 	Closed bool
 
@@ -44,8 +37,22 @@ func (sock *IRCSocket) Write(line string) (int, error) {
 }
 
 func (sock *IRCSocket) Read() (string, error) {
-	if sock.Closed {
-		return "", io.EOF
+	for sock.scanner.Scan() {
+		if sock.Closed {
+			return "", io.EOF
+		}
+
+		line := sock.scanner.Text()
+		if len(line) == 0 {
+			continue
+		}
+		return line, nil
 	}
-	return sock.scanner.Text(), sock.scanner.Err()
+	return "", io.EOF
+}
+
+func (sock *IRCSocket) Close() {
+	sock.Closed = true
+	// Ignore error but indicate in the code we are ignoring it.
+	_ = sock.conn.Close()
 }

@@ -44,7 +44,7 @@ func main() {
 func NewNxIRC(conf *config.Config) *NxIRC {
 	logger, _ := logger.New("test", 1, os.Stdout)
 
-	server := ircd.NewServer(conf, logger)
+	server := ircd.NewLocalServer(conf, logger, true)
 
 	nx := &NxIRC{
 		Config:    conf,

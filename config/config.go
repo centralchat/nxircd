@@ -2,7 +2,6 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 )
 
@@ -27,11 +26,11 @@ type IRCOp struct {
 
 // Config is
 type Config struct {
-	Name     string
-	Network  string
-	LogLevel string
-	Listen   []Listen
-	IrcOps   []IRCOp
+	Name      string
+	Network   string
+	LogLevel  string
+	Listeners []Listen `json:"listen"`
+	IrcOps    []IRCOp
 }
 
 // New returns a new ptr of *config given a config file
@@ -56,10 +55,7 @@ func New(configFile string) (*Config, error) {
 // ListenersFor -
 func (config *Config) ListenersFor(typ string) []Listen {
 	listeners := []Listen{}
-
-	fmt.Println("--", config.Listen)
-
-	for _, listener := range config.Listen {
+	for _, listener := range config.Listeners {
 		if listener.Type == typ {
 			listeners = append(listeners, listener)
 		}

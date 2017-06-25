@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"nxircd/config"
+	"nxircd/interfaces"
 
 	"os"
 
@@ -13,6 +14,8 @@ import (
 
 // Server is the main server struct for the IRCd
 type Server struct {
+	Messageable
+
 	Name    string
 	Network string
 
@@ -22,24 +25,38 @@ type Server struct {
 	Log    *logger.Logger
 	Config *config.Config
 
-	connections chan net.Conn
+	connections chan interfaces.Socket
 
-	Signals chan os.Signal
-
+	Signals  chan os.Signal
 	stopping bool
+
+	Clients *ClientList
+
+	ticker *time.Ticker
+
+	me bool
 }
 
-func NewServer(conf *config.Config, log *logger.Logger) *Server {
+// NewLocalServer - Create a ptr to a server struct
+func NewLocalServer(conf *config.Config, log *logger.Logger, isMe bool) *Server {
 	return &Server{
 		Name:        conf.Name,
 		Network:     conf.Network,
 		CTime:       time.Now(),
 		Time:        time.Now(),
-		connections: make(chan net.Conn),
-		Signals:     make(chan os.Signal),
 		Log:         log,
 		Config:      conf,
+		Clients:     NewClientList(),
+		connections: make(chan interfaces.Socket),
+		Signals:     make(chan os.Signal),
+		ticker:      time.NewTicker(1 * time.Second),
+		me:          isMe,
 	}
+}
+
+// Prefix - Returns the prefix as defined my Messageable interface
+func (serv *Server) Prefix() string {
+	return serv.Name
 }
 
 // Run our server
@@ -47,11 +64,16 @@ func (serv *Server) Run() {
 	serv.bindListeners()
 	for !serv.stopping {
 		select {
-		case conn := <-serv.connections:
-			serv.Log.DebugF("Accepted connection: ", conn.RemoteAddr)
+		case sock := <-serv.connections:
+			cli := NewClient(serv, sock)
+			serv.Clients.Add(cli)
+			go cli.Run()
 		case sig := <-serv.Signals:
 			serv.stopping = true
 			serv.Log.InfoF("Recieved: %v", sig)
+		case <-serv.ticker.C:
+			// Adjust time
+			serv.Time = time.Now()
 		}
 	}
 }
@@ -61,7 +83,6 @@ func (serv *Server) bindListeners() {
 	for _, listener := range listeners {
 		serv.listen(listener)
 	}
-
 }
 
 func (serv *Server) listen(listen config.Listen) (net.Listener, error) {
@@ -82,6 +103,6 @@ func (serv *Server) acceptLoop(listener net.Listener) {
 		if err != nil {
 			continue
 		}
-		serv.connections <- conn
+		serv.connections <- NewIRCSocket(conn)
 	}
 }
