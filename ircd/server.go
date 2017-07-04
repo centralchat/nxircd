@@ -26,11 +26,13 @@ type Server struct {
 	Config *config.Config
 
 	connections chan interfaces.Socket
+	messages    chan *Message
+	Signals     chan os.Signal
 
-	Signals  chan os.Signal
 	stopping bool
 
-	Clients *ClientList
+	Clients  *ClientList
+	Channels *ChanList
 
 	ticker *time.Ticker
 
@@ -40,17 +42,26 @@ type Server struct {
 // NewLocalServer - Create a ptr to a server struct
 func NewLocalServer(conf *config.Config, log *logger.Logger, isMe bool) *Server {
 	return &Server{
-		Name:        conf.Name,
-		Network:     conf.Network,
-		CTime:       time.Now(),
-		Time:        time.Now(),
-		Log:         log,
-		Config:      conf,
-		Clients:     NewClientList(),
+		Name:    conf.Name,
+		Network: conf.Network,
+
+		CTime: time.Now(),
+		Time:  time.Now(),
+
+		Log:    log,
+		Config: conf,
+
+		Clients:  NewClientList(),
+		Channels: NewChanList(),
+
 		connections: make(chan interfaces.Socket),
-		Signals:     make(chan os.Signal),
-		ticker:      time.NewTicker(1 * time.Second),
-		me:          isMe,
+		// Maybe we remove this?
+		messages: make(chan *Message),
+		Signals:  make(chan os.Signal),
+
+		ticker: time.NewTicker(1 * time.Second),
+
+		me: isMe,
 	}
 }
 
@@ -105,4 +116,11 @@ func (serv *Server) acceptLoop(listener net.Listener) {
 		}
 		serv.connections <- NewIRCSocket(conn)
 	}
+}
+
+func (serv *Server) NickInUse(nick string) bool {
+	if cli := serv.Clients.Find(nick); cli != nil {
+		return true
+	}
+	return false
 }

@@ -2,10 +2,11 @@ package ircd
 
 // The reasoning behind this was so the web package could import and the services
 // package can import without
-import "nxircd/interfaces"
-import "github.com/DanielOaks/girc-go/ircmsg"
-import "fmt"
-import "time"
+import (
+	"time"
+
+	"nxircd/interfaces"
+)
 
 const (
 	capStateStart = iota
@@ -13,16 +14,24 @@ const (
 	capStateEnd   = iota
 )
 
+// We shoud do imbeding - but it breaks test
+type IRCClient struct {
+	Nick  string
+	Ident string
+	Name  string
+	Host  string
+}
+
 // Client Holds an IRC Client
 type Client struct {
 	Messageable
-
-	sock interfaces.Socket
 
 	Nick  string
 	Ident string
 	Name  string
 	Host  string
+
+	sock interfaces.Socket
 
 	CTime time.Time
 	ATime time.Time
@@ -61,9 +70,28 @@ func (c *Client) Run() {
 			c.sock.Close()
 			continue
 		}
-		msg, _ := ircmsg.ParseLineMaxLen(line, 512, 512)
-		fmt.Println(msg)
+
+		msg, _ := NewMessage(line)
+		if msg.Blank {
+			// We got a blank line
+			continue
+		}
 	}
+}
+
+func (c *Client) SetNick(nick string) {
+	onick := c.Nick
+	c.Nick = nick
+
+	c.Server.Clients.Move(string(onick), c)
+}
+
+func (c *Client) ChangeNick(nick string) {
+	onick := c.Nick
+	c.Nick = nick
+
+	// TODO: This is to deap its driving me crazy.
+	c.Server.Clients.Move(onick, c)
 }
 
 func (c *Client) Prefix() string {

@@ -1,6 +1,7 @@
 package ircd
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 )
@@ -21,12 +22,17 @@ func NewClientList() *ClientList {
 }
 
 // Add - Add a client to our client list
-func (cl *ClientList) Add(client *Client) {
-	lowerName := strings.ToLower(client.Nick)
+func (cl *ClientList) Add(client *Client) error {
+	nick := strings.ToLower(client.Nick)
 	cl.lock.Lock()
 	defer cl.lock.Unlock()
 
-	cl.list[lowerName] = client
+	if _, found := cl.list[nick]; found {
+		return fmt.Errorf("nick in use")
+	}
+
+	cl.list[nick] = client
+	return nil
 }
 
 // Find a client from our client list
@@ -63,4 +69,8 @@ func (cl *ClientList) Delete(client *Client) {
 func (cl *ClientList) Move(oldKey string, client *Client) {
 	cl.DeleteByNick(oldKey)
 	cl.Add(client)
+}
+
+func (cl *ClientList) Count() int {
+	return len(cl.list)
 }

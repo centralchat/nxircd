@@ -1,5 +1,10 @@
 package ircd
 
+import (
+	"fmt"
+	"strings"
+)
+
 type Messageable interface {
 	// Should implement send
 	Send(*Message) error
@@ -24,26 +29,47 @@ type Message struct {
 	MessageTrg Messageable // Holds the target Struct
 
 	// Exportable JSON attributes so we can integrate CCIRC
-	Command string   `json:"command"`
-	Prefix  string   `json:"prefix"`
-	Target  string   `json:"target"`
-	Args    []string `json:"args"`
+	Command string `json:"command"`
+	Prefix  string `json:"prefix"`
+
+	// TODO: Figure out this
+	// Target  string   `json:"target"`
+	Args []string `json:"args"`
 
 	rawLine string
+
+	Blank bool `json:"blank"`
 }
 
 // NewMessage returns a ptr to a message object given source and line
-func NewMessage(source Messageable, line string) *Message {
-	m := &Message{
-		rawLine:    line,
-		MessageSrc: source,
+func NewMessage(line string) (*Message, error) {
+	m := &Message{}
+	if len(line) == 0 {
+		m.Blank = true
+		return m, nil
 	}
 
-	m.Parse()
-	return m
-}
+	str := strings.TrimSpace(line)
+	if str[0] == ':' {
+		p := strings.SplitN(str, " ", 2)
+		if len(p) <= 1 {
+			return m, fmt.Errorf("line to short")
+		}
+		m.Prefix = p[0][1:]
+		str = p[1]
+	}
 
-// Parse raw line into the various attribtues of the Message struct
-func (msg *Message) Parse() {
+	p := strings.SplitN(str, ":", 2)
+	args := strings.Split(strings.TrimSpace(p[0]), " ")
 
+	m.Command = strings.ToUpper(args[0])
+	if len(args) > 1 {
+		m.Args = append([]string{}, args[1:]...)
+	}
+
+	if len(p) > 1 {
+		m.Args = append(m.Args, p[1])
+	}
+
+	return m, nil
 }
