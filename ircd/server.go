@@ -1,6 +1,7 @@
 package ircd
 
 import (
+	"fmt"
 	"net"
 	"time"
 
@@ -123,4 +124,18 @@ func (serv *Server) NickInUse(nick string) bool {
 		return true
 	}
 	return false
+}
+
+func (serv *Server) Greet(cli *Client) {
+	cli.SendNumeric(RPL_WELCOME, fmt.Sprintf("Welcome to the Internet Relay Network %s", cli.Nick))
+	cli.SendNumeric(RPL_YOURHOST, fmt.Sprintf("Your host is %s, running version %s", serv.Name, VER_STRING))
+	cli.SendNumeric(RPL_CREATED, fmt.Sprintf("This server was created %s", serv.CTime.Format(time.RFC1123)))
+	cli.SendNumeric(RPL_MYINFO, VER_STRING)
+	cli.SendNumeric(RPL_ISUPPORT, "")
+
+	// cli.Send(server.name, RPL_WELCOME, client.nick, fmt.Sprintf("Welcome to the Internet Relay Network %s", client.nick))
+	// cli.Send(server.name, RPL_YOURHOST, client.nick, fmt.Sprintf("Your host is %s, running version %s", server.name, VER_STRING))
+	// cli.Send(server.name, RPL_CREATED, client.nick, fmt.Sprintf("This server was created %s", server.ctime.Format(time.RFC1123)))
+	// cli.Send(server.name, RPL_MYINFO, client.nick, server.name, VER_STRING)
+	// cli.Send(server.name, RPL_ISUPPORT, client.nick)
 }

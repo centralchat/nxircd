@@ -1,6 +1,7 @@
 package ircd
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 )
@@ -72,4 +73,36 @@ func NewMessage(line string) (*Message, error) {
 	}
 
 	return m, nil
+}
+
+// MakeMessage - TODO Make more logic here
+func MakeMessage(prefix, cmd string, args ...string) *Message {
+	return &Message{
+		Command: cmd,
+		Prefix:  prefix,
+		Args:    args,
+	}
+}
+
+func (m *Message) String() string {
+	var buf bytes.Buffer
+
+	if m.Prefix != "" {
+		buf.WriteString(fmt.Sprintf(":%s ", m.Prefix))
+	}
+
+	buf.WriteString(m.Command)
+
+	argc := len(m.Args)
+	if argc > 0 {
+		for pos, val := range m.Args {
+			buf.WriteString(" ")
+			if pos == argc-1 {
+				buf.WriteString(":")
+			}
+			buf.WriteString(val)
+		}
+	}
+
+	return buf.String()
 }

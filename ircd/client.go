@@ -3,6 +3,7 @@ package ircd
 // The reasoning behind this was so the web package could import and the services
 // package can import without
 import (
+	"fmt"
 	"time"
 
 	"nxircd/interfaces"
@@ -38,7 +39,7 @@ type Client struct {
 
 	IP       string
 	RealHost string
-	HostMask string
+	// HostMask string
 
 	registered bool
 
@@ -98,6 +99,30 @@ func (c *Client) Prefix() string {
 	return ""
 }
 
-func (c *Client) Send(msg *Message) error {
-	return nil
+func (c *Client) Send(prefix, cmd string, args ...string) error {
+	m := MakeMessage(prefix, cmd, args...)
+	return c.sendMessage(m)
+}
+
+func (c *Client) SendNumeric(num string, args ...string) error {
+	a := []string{c.Nick}
+	a = append(a, args...)
+
+	m := MakeMessage(c.Server.Name, num, a...)
+	return c.sendMessage(m)
+}
+
+// sendMessage -
+func (c *Client) sendMessage(msg *Message) error {
+	_, err := c.sock.Write(msg.String())
+	return err
+}
+
+func (c *Client) HostMask(real bool) string {
+	host := c.Host
+	if real {
+		host = c.RealHost
+	}
+
+	return fmt.Sprintf("%s!%s@%s", c.Nick, c.Ident, host)
 }

@@ -25,6 +25,20 @@ func TestMessage(t *testing.T) {
 		}
 	})
 
+	t.Run("should construct an IRC line correctly", func(t *testing.T) {
+		m := map[string]*ircd.Message{
+			"PRIVMSG Wanksta :Hey":      ircd.MakeMessage("", "PRIVMSG", "Wanksta", "Hey"),
+			":Mitch PRIVMSG Wanky :Hey": ircd.MakeMessage("Mitch", "PRIVMSG", "Wanky", "Hey"),
+			"USER blah blah blah :Blah": ircd.MakeMessage("", "USER", "blah", "blah", "blah", "Blah"),
+		}
+
+		for expected, msg := range m {
+			if expected != msg.String() {
+				t.Fatalf("Expected: \n\t %s\n to be \n\t%s", expected, msg.String())
+			}
+		}
+	})
+
 	t.Run("should parse a msg with a prefix", func(t *testing.T) {
 		m, err := ircd.NewMessage(":mandingo PRIVMSG duder :Something something")
 		if err != nil {
