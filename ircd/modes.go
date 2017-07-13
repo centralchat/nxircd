@@ -68,6 +68,14 @@ func (sm SupportedMode) HasMode(m Mode) bool {
 	return false
 }
 
+func (sm SupportedMode) String() string {
+	str := ""
+	for _, mode := range sm {
+		str += mode.String()
+	}
+	return str
+}
+
 type ModeChange struct {
 	Action Mode
 	Mode   Mode
@@ -101,6 +109,17 @@ func NewModeList() *ModeList {
 		list: make(map[Mode][]string),
 	}
 }
+func (ml *ModeList) FlagString() string {
+	modeStr := ""
+
+	for mode, entry := range ml.list {
+		if len(entry) == 0 {
+			modeStr += mode.String()
+		}
+	}
+
+	return modeStr
+}
 
 // Add a Mode and Arugment to the list
 func (ml *ModeList) Add(m Mode, args ...string) {
@@ -112,7 +131,10 @@ func (ml *ModeList) Add(m Mode, args ...string) {
 		entry = []string{}
 	}
 
-	entry = append(entry, args...)
+	if args[0] != "" {
+		entry = append(entry, args...)
+	}
+
 	ml.list[m] = entry
 }
 

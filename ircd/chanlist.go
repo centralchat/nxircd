@@ -1,6 +1,7 @@
 package ircd
 
 import "sync"
+import "strings"
 
 type channelListMap map[string]*Channel
 
@@ -16,9 +17,11 @@ func NewChanList() *ChanList {
 	}
 }
 
-func (cl *ChanList) Find(name string) *Channel {
+func (cl *ChanList) Find(nameRaw string) *Channel {
 	cl.lock.RLock()
 	defer cl.lock.RUnlock()
+
+	name := strings.ToLower(nameRaw)
 
 	ch, _ := cl.list[name]
 	return ch
@@ -28,13 +31,15 @@ func (cl *ChanList) Add(ch *Channel) {
 	cl.lock.Lock()
 	defer cl.lock.Unlock()
 
-	cl.list[ch.Name] = ch
+	name := strings.ToLower(ch.Name)
+
+	cl.list[name] = ch
 }
 
 func (cl *ChanList) Delete(ch *Channel) {
 	cl.lock.Lock()
 	defer cl.lock.Unlock()
-	delete(cl.list, ch.Name)
+	delete(cl.list, strings.ToLower(ch.Name))
 }
 
 func (cl *ChanList) Count() int {

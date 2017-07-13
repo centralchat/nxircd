@@ -173,11 +173,11 @@ func (serv *Server) NickInUse(nick string) bool {
 }
 
 func (serv *Server) Greet(cli *Client) {
-	cli.SendNumeric(RPL_WELCOME, fmt.Sprintf("Welcome to the Internet Relay Network %s", cli.Nick))
-	cli.SendNumeric(RPL_YOURHOST, fmt.Sprintf("Your host is %s, running version %s", serv.Name, VER_STRING))
+	cli.SendNumeric(RPL_WELCOME, fmt.Sprintf("Welcome to the %s IRC Network %s", serv.Network, cli.RealHostMask()))
+	cli.SendNumeric(RPL_YOURHOST, fmt.Sprintf("Your host is %s, running version %s", serv.Name, VERSION))
 	cli.SendNumeric(RPL_CREATED, fmt.Sprintf("This server was created %s", serv.CTime.Format(time.RFC1123)))
-	cli.SendNumeric(RPL_MYINFO, VER_STRING)
-	cli.SendNumeric(RPL_ISUPPORT, "")
+
+	SendSupportLine(cli)
 }
 
 func NewTestClient(server *Server, nick, ident string) (*interfaces.TestSocket, *Client) {

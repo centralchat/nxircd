@@ -67,6 +67,10 @@ var clientCmdMap = map[string]ClientCmd{
 		minParams: 1,
 		handler:   modeUCmdHandler,
 	},
+	"TOPIC": {
+		minParams: 1,
+		handler:   topicUCmdHandler,
+	},
 }
 
 func nickUCmdHandler(srv *Server, cli *Client, m *Message) error {
@@ -262,5 +266,32 @@ func modeUCmdHandler(srv *Server, cli *Client, m *Message) error {
 		return nil
 	}
 
+	return nil
+}
+
+func topicUCmdHandler(srv *Server, cli *Client, m *Message) error {
+	target := m.Args[0]
+
+	if !ValidChannel(target) {
+		cli.SendNumeric(ERR_NOSUCHCHANNEL, target, "*", "no such channel: invalid channel name")
+		return fmt.Errorf("invalid channel")
+	}
+
+	ch := srv.FindChannel(target)
+	if ch == nil {
+		cli.SendNumeric(ERR_NOSUCHCHANNEL, target, "*", "no such channel")
+		return fmt.Errorf("no such channel")
+	}
+
+	if len(m.Args) == 1 {
+		ch.sendTopicNumeric(cli)
+		return nil
+	}
+
+	if !ch.IsOperator(cli) {
+		cli.SendNumeric(ERR_NOPRIVS, target, "*", "no such channel")
+		return fmt.Errorf("no privs")
+	}
+	ch.SetTopic(cli, m.Args[1])
 	return nil
 }

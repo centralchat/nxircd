@@ -24,6 +24,12 @@ type IRCOp struct {
 	Hosts []string
 }
 
+type Limits struct {
+	Nick        int
+	Channels    int
+	ChannelName int `json:"channel_name"`
+}
+
 // Config is
 type Config struct {
 	Name      string
@@ -31,6 +37,7 @@ type Config struct {
 	LogLevel  string
 	Listeners []Listen `json:"listen"`
 	IrcOps    []IRCOp
+	Limits    Limits `json:"limits"`
 }
 
 // New returns a new ptr of *config given a config file

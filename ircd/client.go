@@ -122,12 +122,12 @@ func (c *Client) Prefix() string {
 	return ""
 }
 
-func (c *Client) VhostMask() string {
-	return fmt.Sprintf("%s!%s@%s", c.Nick, c.Ident, c.Host)
+func (c *Client) RealHostMask() string {
+	return fmt.Sprintf("%s!%s@%s", c.Nick, c.Ident, c.RealHost)
 }
 
 func (c *Client) HostMask() string {
-	return fmt.Sprintf("%s!%s@%s", c.Nick, c.Ident, c.RealHost)
+	return fmt.Sprintf("%s!%s@%s", c.Nick, c.Ident, c.Host)
 }
 
 func (c *Client) IPMask() string {

@@ -1,6 +1,7 @@
 package ircd
 
 import (
+	"fmt"
 	"strings"
 	"time"
 )
@@ -13,10 +14,10 @@ type Channel struct {
 	Clients *ClientList
 	Modes   *ModeList
 
-	Topic string
-
-	// Topic Set Time
-	TTime time.Time
+	// Topic Info
+	Topic       string
+	TopicSetter string
+	TopicTime   time.Time
 
 	CTime time.Time
 }
@@ -31,20 +32,40 @@ func NewChannel(name string) *Channel {
 }
 
 func (c *Channel) Join(cli *Client) {
+
 	cli.Reply("JOIN", c.Name)
 
 	if c.Empty() {
 		c.AddModeServer(cli.Server, 'o', cli.Nick)
 	} else {
-		c.Send(cli.VhostMask(), "JOIN", c.Name)
+		c.Send(cli.HostMask(), "JOIN", c.Name)
 	}
+
+	c.sendTopicNumeric(cli)
+
+	cli.SendNumeric(RPL_CHANNELMODEIS, c.Name, "+"+c.Modes.FlagString())
+	cli.SendNumeric(RPL_CHANNELCREATED, c.Name, fmt.Sprintf("%d", c.CTime.Unix()))
 
 	c.Clients.Add(cli)
 
 	cli.Channels.Add(c)
 
 	c.Names(cli)
+}
 
+func (c *Channel) SetTopic(cli *Client, topic string) {
+	c.TopicSetter = cli.Nick
+	c.TopicTime = time.Now()
+	c.Topic = topic
+
+	c.Send(cli.HostMask(), "TOPIC", c.Name, c.Topic+" ")
+}
+
+func (c *Channel) sendTopicNumeric(cli *Client) {
+	if c.Topic != "" {
+		cli.SendNumeric(RPL_TOPIC, c.Topic+" ")
+		cli.SendNumeric(RPL_TOPICTIME, fmt.Sprintf("%d", c.TopicTime.Unix()))
+	}
 }
 
 func (c *Channel) Names(cli *Client) {
@@ -138,7 +159,7 @@ func (c *Channel) AddModeServer(srv *Server, m Mode, arg string) {
 }
 
 func (c *Channel) Part(cli *Client, msg string) {
-	c.Send(cli.VhostMask(), "PART", c.Name, msg+" ")
+	c.Send(cli.HostMask(), "PART", c.Name, msg+" ")
 	c.Clients.Delete(cli)
 	cli.Channels.Delete(c)
 }
