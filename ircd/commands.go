@@ -71,6 +71,10 @@ var clientCmdMap = map[string]ClientCmd{
 		minParams: 1,
 		handler:   topicUCmdHandler,
 	},
+	"KICK": {
+		minParams: 2,
+		handler:   kickUCmdHandler,
+	},
 }
 
 func nickUCmdHandler(srv *Server, cli *Client, m *Message) error {
@@ -293,5 +297,38 @@ func topicUCmdHandler(srv *Server, cli *Client, m *Message) error {
 		return fmt.Errorf("no privs")
 	}
 	ch.SetTopic(cli, m.Args[1])
+	return nil
+}
+
+func kickUCmdHandler(srv *Server, cli *Client, m *Message) error {
+	target := m.Args[0]
+	if !ValidChannel(target) {
+		cli.SendNumeric(ERR_NOSUCHCHANNEL, target, "*", "no such channel: invalid channel name")
+		return fmt.Errorf("invalid channel")
+	}
+
+	ch := srv.FindChannel(target)
+	if ch == nil {
+		cli.SendNumeric(ERR_NOSUCHCHANNEL, target, "*", "no such channel")
+		return fmt.Errorf("no such channel")
+	}
+
+	if !ch.IsHalfOp(cli) && !ch.IsOperator(cli) {
+		cli.SendNumeric(ERR_NOPRIVILEGES, "kick", target, "no permissions.")
+		return fmt.Errorf("no permissions")
+	}
+
+	client := ch.Clients.Find(m.Args[1])
+	if client == nil {
+		cli.SendNumeric(ERR_NOTONCHANNEL, target, m.Args[1], "no such nickname")
+		return fmt.Errorf("no such nickname")
+	}
+
+	msg := "kicked from channel"
+	if len(m.Args) > 2 {
+		msg = m.Args[2]
+	}
+
+	ch.Kick(cli, client, msg)
 	return nil
 }

@@ -8,6 +8,10 @@ import (
 
 var ChanPrefix = "#"
 
+var PermissionMap = map[string][]Mode{
+	"kick": []Mode{'o', 'b'},
+}
+
 type Channel struct {
 	Name string
 
@@ -32,25 +36,25 @@ func NewChannel(name string) *Channel {
 }
 
 func (c *Channel) Join(cli *Client) {
+	isNewChannel := c.Empty()
 
 	cli.Reply("JOIN", c.Name)
-
-	if c.Empty() {
-		c.AddModeServer(cli.Server, 'o', cli.Nick)
-	} else {
-		c.Send(cli.HostMask(), "JOIN", c.Name)
-	}
-
-	c.sendTopicNumeric(cli)
-
 	cli.SendNumeric(RPL_CHANNELMODEIS, c.Name, "+"+c.Modes.FlagString())
 	cli.SendNumeric(RPL_CHANNELCREATED, c.Name, fmt.Sprintf("%d", c.CTime.Unix()))
+
+	c.sendTopicNumeric(cli)
 
 	c.Clients.Add(cli)
 
 	cli.Channels.Add(c)
 
 	c.Names(cli)
+
+	if isNewChannel {
+		c.AddModeServer(cli.Server, 'o', cli.Nick)
+	} else {
+		c.Send(cli.HostMask(), "JOIN", c.Name)
+	}
 }
 
 func (c *Channel) SetTopic(cli *Client, topic string) {
@@ -95,6 +99,20 @@ func (c *Channel) IsHalfOp(cli *Client) bool {
 
 func (c *Channel) IsVoice(cli *Client) bool {
 	return c.Modes.HasExactArg('v', cli.Nick)
+}
+
+func (c *Channel) ClientCan(cli *Client, permName string) bool {
+	modes, found := PermissionMap[permName]
+	if !found {
+		return true
+	}
+
+	for _, mode := range modes {
+		if c.Modes.HasExactArg(mode, cli.Name) {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Channel) ModePrefixFor(cli *Client) string {
@@ -155,13 +173,25 @@ func (c *Channel) DeleteMode(setter *Client, m Mode, arg string) {
 
 func (c *Channel) AddModeServer(srv *Server, m Mode, arg string) {
 	c.Modes.Add(m, arg)
-	c.Send(srv.Name, "MODE", c.Name, m.String(), arg)
+	c.Send(srv.Name, "MODE", c.Name, "+"+m.String(), arg)
 }
 
 func (c *Channel) Part(cli *Client, msg string) {
 	c.Send(cli.HostMask(), "PART", c.Name, msg+" ")
 	c.Clients.Delete(cli)
 	cli.Channels.Delete(c)
+}
+
+func (c *Channel) Kick(src *Client, cli *Client, msg string) {
+	cli.Channels.Delete(c)
+
+	// TODO: We really need a way to better mass set and unset modes
+	c.Modes.DeleteArgument('o', cli.Nick)
+	c.Modes.DeleteArgument('h', cli.Nick)
+	c.Modes.DeleteArgument('v', cli.Nick)
+
+	c.Send(src.HostMask(), "KICK", c.Name, cli.Nick, msg+" ")
+	c.Clients.Delete(cli)
 }
 
 func (c *Channel) NickChange(cli *Client, oldNick string) {
