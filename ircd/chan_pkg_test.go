@@ -27,14 +27,27 @@ func TestChannel(t *testing.T) {
 			t.Fatalf("Invalid line sent to client on join: (%s)", line)
 		}
 
+		line = socket.GrabWriteLine()
+		if line != ":testing 324 testy #test +" {
+			t.Fatalf("Did not send modes to client")
+		}
+
+		socket.GrabWriteLine()
+
 		// burn 2 lines
 		line = socket.GrabWriteLine()
-		if line != ":testing 353 testy = #test :@testy" {
+		if line != ":testing 353 testy = #test :testy" {
 			t.Fatalf("No names sent to client: %s", line)
 		}
 
 		// Ignore the end of names for now
 		socket.GrabWriteLine()
+
+		// Should Set mode +o
+		line = socket.GrabWriteLine()
+		if line != ":testing MODE #test +o testy" {
+			t.Fatalf("No mode o set on empty channel: %s", line)
+		}
 
 		ch.Part(cli, "Leaving")
 
