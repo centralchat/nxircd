@@ -9,8 +9,12 @@ deps-release:
 
 build:
 	mkdir -p dist/
-	go build -o dist/nxircd_${VERSION}_linux_${ARCH} .
-	GOARCH=386 GOOS=linux go build -o dist/nxircd_${VERSION}_linux_386 .
+	GOOS=linux GOARCH=amd64 go build -o dist/nxircd_${VERSION}_linux_amd64 .
+	GOOS=linux GOARCH=386 go build -o dist/nxircd_${VERSION}_linux_x86 .
+	GOOS=darwin GOARCH=amd64 go build -o dist/nxircd_${VERSION}_osx_amd64 .
+	GOOS=darwin GOARCH=386 go build -o dist/nxircd_${VERSION}_osx_x86 .
+	GOOS=windows GOARCH=amd64 go build -o dist/nxircd_${VERSION}_windows_64
+    GOOS=windows GOARCH=386  build -o dist/nxircd_${VERSION}_windows_x86
 
 dist: build
 	ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} ${VERSION} dist/
