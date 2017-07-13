@@ -1,7 +1,6 @@
 VERSION := $(shell cat VERSION)
 
 deps:
-	go get github.com/tcnksm/gh
 	go get -t -d -v ./...
 
 deps-release:
