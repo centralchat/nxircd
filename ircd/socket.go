@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"io"
 	"net"
+	"strings"
 
+	"fmt"
 	"nxircd/interfaces"
 )
 
@@ -32,8 +34,16 @@ func NewIRCSocket(conn net.Conn) *IRCSocket {
 	}
 }
 
-func (sock *IRCSocket) Write(line string) (int, error) {
-	return sock.writer.WriteString(line)
+func (sock *IRCSocket) Write(line string) (written int, err error) {
+	fmt.Println("OUT: ", strings.Trim(line, "\r\n"))
+	written, err = sock.writer.WriteString(line)
+	if err != nil {
+		return
+	}
+	if err = sock.writer.Flush(); err != nil {
+		return
+	}
+	return
 }
 
 func (sock *IRCSocket) Read() (string, error) {
@@ -46,6 +56,9 @@ func (sock *IRCSocket) Read() (string, error) {
 		if len(line) == 0 {
 			continue
 		}
+
+		fmt.Println("IN: ", line)
+
 		return line, nil
 	}
 	return "", io.EOF
@@ -55,4 +68,10 @@ func (sock *IRCSocket) Close() {
 	sock.Closed = true
 	// Ignore error but indicate in the code we are ignoring it.
 	_ = sock.conn.Close()
+}
+
+func (sock *IRCSocket) IP() string {
+	remoteAddr := sock.conn.RemoteAddr().String()
+	ip, _, _ := net.SplitHostPort(remoteAddr)
+	return ip
 }

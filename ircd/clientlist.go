@@ -57,11 +57,7 @@ func (cl *ClientList) DeleteByNick(nick string) {
 
 // Delete a client from the ClientList
 func (cl *ClientList) Delete(client *Client) {
-	lowerName := strings.ToLower(client.Nick)
-	cl.lock.Lock()
-	defer cl.lock.Unlock()
-
-	delete(cl.list, lowerName)
+	cl.DeleteByNick(client.Nick)
 	return
 }
 

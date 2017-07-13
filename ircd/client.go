@@ -47,17 +47,30 @@ type Client struct {
 
 	local bool
 
-	capState int
+	capState   int
+	capVersion int
+
+	Channels *ChanList
+
+	Modes *ModeList
+
+	connected bool
 }
 
 // NewClient Returns a new IRC Client
 func NewClient(server *Server, sock interfaces.Socket) *Client {
+	ip := sock.IP()
+
 	return &Client{
-		sock:   sock,
-		Server: server,
-		local:  server.me,
-		CTime:  time.Now(),
-		ATime:  time.Now(),
+		IP:        ip,
+		sock:      sock,
+		Server:    server,
+		local:     server.me,
+		CTime:     time.Now(),
+		ATime:     time.Now(),
+		Modes:     NewModeList(),
+		Channels:  NewChanList(),
+		connected: true,
 	}
 }
 
@@ -65,17 +78,27 @@ func NewClient(server *Server, sock interfaces.Socket) *Client {
 func (c *Client) Run() {
 	var err error
 
+	clientPreflight(c)
+
 	for err == nil {
 		line, err := c.sock.Read()
 		if err != nil {
-			c.sock.Close()
-			continue
+			if c.connected {
+				c.Quit(fmt.Sprintf("%s", err))
+			}
+			break
 		}
 
 		msg, _ := NewMessage(line)
+
+		// We got a blank line
+		// Its ok to continue
 		if msg.Blank {
-			// We got a blank line
 			continue
+		}
+
+		if cmd, found := clientCmdMap[msg.Command]; found {
+			cmd.Run(c, msg)
 		}
 	}
 }
@@ -99,8 +122,58 @@ func (c *Client) Prefix() string {
 	return ""
 }
 
+func (c *Client) VhostMask() string {
+	return fmt.Sprintf("%s!%s@%s", c.Nick, c.Ident, c.Host)
+}
+
+func (c *Client) HostMask() string {
+	return fmt.Sprintf("%s!%s@%s", c.Nick, c.Ident, c.RealHost)
+}
+
+func (c *Client) IPMask() string {
+	return fmt.Sprintf("%s!%s@%s", c.Nick, c.Ident, c.IP)
+}
+
+func (c *Client) ApplyModes(ms ...Mode) {
+	for _, m := range ms {
+		c.Modes.Add(m, "")
+	}
+}
+
+func (c *Client) Quit(msg string) {
+	c.sock.Close()
+	for _, channel := range c.Channels.list {
+		channel.Quit(c, msg)
+		c.Channels.Delete(channel)
+	}
+	c.Server.RemoveClient(c)
+}
+
+func (c *Client) Part(channel *Channel, msg string) {
+	c.Channels.Delete(channel)
+	channel.Part(c, msg)
+}
+
 func (c *Client) Send(prefix, cmd string, args ...string) error {
 	m := MakeMessage(prefix, cmd, args...)
+	return c.sendMessage(m)
+}
+
+func (c *Client) Reply(cmd string, args ...string) error {
+	m := MakeMessage(c.Nick, cmd, args...)
+	return c.sendMessage(m)
+}
+
+func (c *Client) PrivMsg(cli *Client, msg string) {
+	c.Send(cli.Nick, "PRIVMSG", c.Nick, msg+" ")
+}
+
+func (c *Client) Notice(cli *Client, msg string) {
+	c.Send(cli.Nick, "NOTICE", c.Nick, msg+" ")
+}
+
+func (c *Client) SendFromServer(cmd string, args ...string) error {
+	m := MakeMessage(c.Server.Name, cmd, args...)
 	return c.sendMessage(m)
 }
 
@@ -116,13 +189,4 @@ func (c *Client) SendNumeric(num string, args ...string) error {
 func (c *Client) sendMessage(msg *Message) error {
 	_, err := c.sock.Write(msg.String())
 	return err
-}
-
-func (c *Client) HostMask(real bool) string {
-	host := c.Host
-	if real {
-		host = c.RealHost
-	}
-
-	return fmt.Sprintf("%s!%s@%s", c.Nick, c.Ident, host)
 }

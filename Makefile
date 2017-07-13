@@ -5,12 +5,17 @@ deps:
 
 deps-release:
 
+build386: 
+	mkdir -p $GOPATH/src
+	mkdir -p $PWD/dist/
+	GOARCH=386 GOOS=linux go build -o dist/nxircd_${VERSION}_linux_386 .
+
 build:
 	mkdir -p $GOPATH/src
 	mkdir -p $PWD/dist/
-	go build -verbose -output="dist/nxircd_${VERSION}_{{.OS}}_{{.Arch}}"
+	go build -o dist/nxircd_${VERSION}_{{.OS}}_{{.Arch}} .
 
-dist: build
+dist: build386 build
 	ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} ${VERSION} dist/
 
 test:

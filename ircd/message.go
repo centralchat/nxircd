@@ -1,7 +1,6 @@
 package ircd
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 )
@@ -36,6 +35,7 @@ type Message struct {
 	// TODO: Figure out this
 	// Target  string   `json:"target"`
 	Args []string `json:"args"`
+	Argc int      `json:"-"`
 
 	rawLine string
 
@@ -72,6 +72,8 @@ func NewMessage(line string) (*Message, error) {
 		m.Args = append(m.Args, p[1])
 	}
 
+	m.Argc = len(m.Args)
+
 	return m, nil
 }
 
@@ -85,24 +87,29 @@ func MakeMessage(prefix, cmd string, args ...string) *Message {
 }
 
 func (m *Message) String() string {
-	var buf bytes.Buffer
+	var line string
 
 	if m.Prefix != "" {
-		buf.WriteString(fmt.Sprintf(":%s ", m.Prefix))
+		line = fmt.Sprintf(":%s ", m.Prefix)
 	}
 
-	buf.WriteString(m.Command)
+	line += m.Command
 
 	argc := len(m.Args)
+
+	// TODO: Make this more robust
 	if argc > 0 {
-		for pos, val := range m.Args {
-			buf.WriteString(" ")
-			if pos == argc-1 {
-				buf.WriteString(":")
+		for _, val := range m.Args {
+			line += " "
+			if strings.Index(val, " ") >= 0 || strings.Index(val, ":") >= 0 {
+				line += ":"
 			}
-			buf.WriteString(val)
+			line += val
 		}
 	}
 
-	return buf.String()
+	// Wee needs it
+	line = strings.TrimSpace(line)
+	line += "\r\n"
+	return line
 }

@@ -27,14 +27,16 @@ func TestMessage(t *testing.T) {
 
 	t.Run("should construct an IRC line correctly", func(t *testing.T) {
 		m := map[string]*ircd.Message{
-			"PRIVMSG Wanksta :Hey":      ircd.MakeMessage("", "PRIVMSG", "Wanksta", "Hey"),
-			":Mitch PRIVMSG Wanky :Hey": ircd.MakeMessage("Mitch", "PRIVMSG", "Wanky", "Hey"),
-			"USER blah blah blah :Blah": ircd.MakeMessage("", "USER", "blah", "blah", "blah", "Blah"),
+			"PRIVMSG Wanksta :Hey\r\n":       ircd.MakeMessage("", "PRIVMSG", "Wanksta", "Hey "),
+			":Mitch PRIVMSG Wanky :Hey\r\n":  ircd.MakeMessage("Mitch", "PRIVMSG", "Wanky", "Hey "),
+			"USER blah blah blah :Blah\r\n":  ircd.MakeMessage("", "USER", "blah", "blah", "blah", "Blah "),
+			":Mitch JOIN #test\r\n":          ircd.MakeMessage("Mitch", "JOIN", "#test"),
+			":Mitch PART #test :Leaving\r\n": ircd.MakeMessage("Mitch", "PART", "#test", "Leaving "),
 		}
 
 		for expected, msg := range m {
 			if expected != msg.String() {
-				t.Fatalf("Expected: \n\t %s\n to be \n\t%s", expected, msg.String())
+				t.Fatalf("Expected: \n\t %s\n to be \n\t%s", msg.String(), expected)
 			}
 		}
 	})

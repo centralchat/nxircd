@@ -37,6 +37,8 @@ type Server struct {
 
 	ticker *time.Ticker
 
+	MaxClients int
+
 	me bool
 }
 
@@ -54,6 +56,8 @@ func NewLocalServer(conf *config.Config, log *logger.Logger, isMe bool) *Server 
 
 		Clients:  NewClientList(),
 		Channels: NewChanList(),
+
+		MaxClients: 0,
 
 		connections: make(chan interfaces.Socket),
 		// Maybe we remove this?
@@ -78,7 +82,8 @@ func (serv *Server) Run() {
 		select {
 		case sock := <-serv.connections:
 			cli := NewClient(serv, sock)
-			serv.Clients.Add(cli)
+			serv.AddClient(cli)
+
 			go cli.Run()
 		case sig := <-serv.Signals:
 			serv.stopping = true
@@ -115,8 +120,49 @@ func (serv *Server) acceptLoop(listener net.Listener) {
 		if err != nil {
 			continue
 		}
+
+		serv.Log.DebugF("Accepting Connection: %v", conn.RemoteAddr)
 		serv.connections <- NewIRCSocket(conn)
 	}
+}
+
+func (serv *Server) AddClient(cli *Client) {
+	serv.Clients.Add(cli)
+
+	cnt := serv.Clients.Count()
+	if cnt > serv.MaxClients {
+		serv.MaxClients = cnt
+		serv.Log.InfoF("New max client count: %d", cnt)
+	}
+}
+
+// FindClient - an alias to serv.Clients.Find for shorter code
+func (serv *Server) FindClient(nick string) *Client {
+	return serv.Clients.Find(nick)
+}
+
+// FindChannel - an alias to serv.Channels.Find for shorter code
+func (serv *Server) FindChannel(name string) *Channel {
+	return serv.Channels.Find(name)
+}
+
+// FindOrAddChan - Finds a channel , if that doesnt exist it adds it to the server registry
+func (serv *Server) FindOrAddChan(name string) (ch *Channel) {
+	ch = serv.FindChannel(name)
+	if ch != nil {
+		return
+	}
+	ch = NewChannel(name)
+	serv.Channels.Add(ch)
+	return
+}
+
+// RemoveClient - Remove a client from the server list
+// Todo add additional logic etc here.
+func (serv *Server) RemoveClient(cli *Client) {
+	serv.Clients.Delete(cli)
+
+	serv.Log.DebugF("New client count: %d", serv.Clients.Count())
 }
 
 func (serv *Server) NickInUse(nick string) bool {
@@ -132,10 +178,15 @@ func (serv *Server) Greet(cli *Client) {
 	cli.SendNumeric(RPL_CREATED, fmt.Sprintf("This server was created %s", serv.CTime.Format(time.RFC1123)))
 	cli.SendNumeric(RPL_MYINFO, VER_STRING)
 	cli.SendNumeric(RPL_ISUPPORT, "")
+}
 
-	// cli.Send(server.name, RPL_WELCOME, client.nick, fmt.Sprintf("Welcome to the Internet Relay Network %s", client.nick))
-	// cli.Send(server.name, RPL_YOURHOST, client.nick, fmt.Sprintf("Your host is %s, running version %s", server.name, VER_STRING))
-	// cli.Send(server.name, RPL_CREATED, client.nick, fmt.Sprintf("This server was created %s", server.ctime.Format(time.RFC1123)))
-	// cli.Send(server.name, RPL_MYINFO, client.nick, server.name, VER_STRING)
-	// cli.Send(server.name, RPL_ISUPPORT, client.nick)
+func NewTestClient(server *Server, nick, ident string) (*interfaces.TestSocket, *Client) {
+	socket := interfaces.NewTestSocket()
+	cli := NewClient(server, socket)
+
+	cli.Nick = nick
+	cli.Ident = ident
+	cli.Host = cli.IP
+
+	return socket, cli
 }

@@ -44,6 +44,15 @@ func New(configFile string) (*Config, error) {
 		return nil, err
 	}
 
+	config, err := NewFromBytes(bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return config, nil
+}
+
+func NewFromBytes(bytes []byte) (*Config, error) {
 	config := &Config{}
 	if err := json.Unmarshal(bytes, config); err != nil {
 		return nil, err
