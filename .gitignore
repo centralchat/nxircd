@@ -1,3 +1,4 @@
 nxircd
 .vscode
 config.json
+dist/
