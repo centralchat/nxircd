@@ -2,7 +2,16 @@
   "name":    "irc.nxircd.org",
   "network": "nxircd",
   
+  "host_prefix": "nxIRCD",
+
   "loglevel": "DEBUG",
+
+  "limits": {
+    "nick": 30,    
+    "channel_name": 30,
+    "channels": 10
+  },
+
   "listen": [
     { "host": "127.0.0.1:6666", "type" : "ircd" },
     { "host": "127.0.0.1:6667", "type" : "ircd" },

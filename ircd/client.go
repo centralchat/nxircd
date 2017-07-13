@@ -3,10 +3,13 @@ package ircd
 // The reasoning behind this was so the web package could import and the services
 // package can import without
 import (
+	"bytes"
+	"crypto/sha1"
 	"fmt"
 	"time"
 
 	"nxircd/interfaces"
+	"strings"
 )
 
 const (
@@ -123,8 +126,55 @@ func (c *Client) Prefix() string {
 	return ""
 }
 
+// This is ugly but im tired so lets leave it be for now
+func (c *Client) ApplyModeChanges(changes []ModeChange) {
+
+	addString := ""
+	delString := ""
+
+	for _, change := range changes {
+		switch change.Action {
+		case ModeActionAdd:
+			c.Modes.Add(change.Mode, "")
+			addString += change.Mode.String()
+		case ModeActionDel:
+			c.Modes.Delete(change.Mode)
+			delString += change.Mode.String()
+		case ModeActionList:
+			// Ignore for now
+			continue
+		}
+	}
+
+	if addString != "" {
+		c.Send(c.Nick, "MODE", c.Nick, "+"+addString)
+	}
+	if delString != "" {
+		c.Send(c.Nick, "MODE", c.Nick, "-"+delString)
+	}
+}
+
 func (c *Client) RealHostMask() string {
 	return fmt.Sprintf("%s!%s@%s", c.Nick, c.Ident, c.RealHost)
+}
+
+func (c *Client) SetMaskedHost() {
+	if c.RealHost == c.IP {
+		encode := fmt.Sprintf("%x", sha1.Sum([]byte(c.IP)))
+
+		c.Host = fmt.Sprintf("%s-%s.%s.%s.%s.IP", c.Server.Config.HostPrefix,
+			encode[0:5], encode[6:11], encode[12:17], encode[17:22])
+	} else {
+		pieces := strings.Split(c.RealHost, ".")
+		str := fmt.Sprintf("%x", sha1.Sum([]byte(pieces[0])))
+		str = str[0:10]
+		if len(pieces) > 1 {
+			for _, piece := range pieces[1:] {
+				str = "." + piece
+			}
+		}
+		c.Host = c.Server.Config.HostPrefix + "-" + str
+	}
 }
 
 func (c *Client) HostMask() string {
@@ -184,6 +234,35 @@ func (c *Client) SendNumeric(num string, args ...string) error {
 
 	m := MakeMessage(c.Server.Name, num, a...)
 	return c.sendMessage(m)
+}
+
+func (c *Client) Whois(target *Client) {
+	var buf bytes.Buffer
+
+	c.SendNumeric(RPL_WHOISUSER, target.Nick, target.Ident, target.Host, "*", target.Name+" ")
+	c.SendNumeric(RPL_WHOISMODES, target.Nick, fmt.Sprintf("is using modes +%s", target.Modes.FlagString()))
+	c.SendNumeric(RPL_WHOISHOST, target.Nick, fmt.Sprintf("is connecting from *@%s %s", target.RealHost, target.IP))
+
+	c.Channels.lock.RLock()
+	defer c.Channels.lock.RUnlock()
+
+	for _, channel := range c.Channels.list {
+		prefix := channel.ModePrefixFor(target)
+
+		buf.WriteString(prefix + channel.Name)
+		buf.WriteString(" ")
+	}
+
+	buf.WriteString(" ")
+	if buf.Len() > 0 {
+		c.SendNumeric(RPL_WHOISCHANNELS, target.Nick, buf.String())
+	}
+
+	c.SendNumeric(RPL_WHOISSERVER, target.Nick, target.Server.Name, target.Server.Network)
+
+	// RPL_WHOISSECURE
+
+	c.SendNumeric(RPL_ENDOFWHOIS, target.Nick, "End of /WHOIS list")
 }
 
 // sendMessage -

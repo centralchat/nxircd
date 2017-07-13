@@ -20,7 +20,7 @@ func clientPreflight(c *Client) {
 		c.RealHost = names[0]
 	}
 
-	c.Host = c.RealHost // For now to do masking later
+	c.SetMaskedHost()
 }
 
 func joinChannel(c *Client, cname string) error {

@@ -32,9 +32,11 @@ type Limits struct {
 
 // Config is
 type Config struct {
-	Name      string
-	Network   string
-	LogLevel  string
+	Name       string
+	Network    string
+	LogLevel   string
+	HostPrefix string `json:"host_prefix"`
+
 	Listeners []Listen `json:"listen"`
 	IrcOps    []IRCOp
 	Limits    Limits `json:"limits"`

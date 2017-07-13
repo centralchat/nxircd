@@ -41,6 +41,12 @@ var SupportedUModes = SupportedMode{
 	"snotice":    's',
 }
 
+var ServerOnlyUModes = map[Mode]bool{
+	'o': true,
+	'O': true,
+	'S': true,
+}
+
 var SupportedCModes = SupportedMode{
 	"anonyous":   'a',
 	"ban":        'b',
@@ -57,6 +63,10 @@ var SupportedCModes = SupportedMode{
 	"operator": 'o',
 	"halfop":   'h',
 	"voice":    'v',
+}
+
+var ServerOnlyCModes = map[Mode]bool{
+	'r': true,
 }
 
 func (sm SupportedMode) HasMode(m Mode) bool {
@@ -228,6 +238,41 @@ func ParseCMode(args ...string) []ModeChange {
 
 			switch change.Mode {
 			case 'k', 'b', 'i', 'l', 'o', 'h', 'v':
+				if len(args) > pos {
+					change.Arg = args[pos]
+					pos++
+				}
+			}
+			changes = append(changes, change)
+		}
+		args = args[pos:]
+	}
+	return changes
+}
+
+func ParseUMode(args ...string) []ModeChange {
+	changes := []ModeChange{}
+
+	for len(args) > 0 {
+		modes := args[0]
+		action := Mode(modes[0])
+
+		switch action {
+		case ModeActionAdd, ModeActionDel:
+			modes = modes[1:]
+		default:
+			action = ModeActionList
+		}
+
+		pos := 1
+		for _, mode := range modes {
+			change := ModeChange{
+				Action: action,
+				Mode:   Mode(mode),
+			}
+
+			switch change.Mode {
+			case 's':
 				if len(args) > pos {
 					change.Arg = args[pos]
 					pos++

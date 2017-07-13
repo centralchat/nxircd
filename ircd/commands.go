@@ -69,7 +69,7 @@ var clientCmdMap = map[string]ClientCmd{
 		handler:   modeUCmdHandler,
 	},
 	"TOPIC": {
-		minParams: 1,
+		minParams: 2,
 		handler:   topicUCmdHandler,
 	},
 	"KICK": {
@@ -81,6 +81,10 @@ var clientCmdMap = map[string]ClientCmd{
 	},
 	"PING": {
 		handler: pingUCmdHandler,
+	},
+	"WHOIS": {
+		minParams: 1,
+		handler:   whoisUCmdHandler,
 	},
 }
 
@@ -282,6 +286,17 @@ func modeUCmdHandler(srv *Server, cli *Client, m *Message) error {
 		return nil
 	}
 
+	if ValidNick(target) {
+		client := srv.FindClient(target)
+		if client == nil {
+			cli.SendNumeric(ERR_NOSUCHNICK, target, "*", "no such nickname")
+			return nil
+		}
+
+		changes := ParseUMode(m.Args[1:]...)
+		client.ApplyModeChanges(changes)
+	}
+
 	return nil
 }
 
@@ -352,5 +367,18 @@ func listUCmdHandler(srv *Server, cli *Client, m *Message) error {
 	for _, channel := range srv.Channels.list {
 		cli.SendNumeric(RPL_LIST, channel.Name, fmt.Sprintf("%d", channel.Clients.Count()), fmt.Sprintf("[+%s] %s", channel.Modes.FlagString(), channel.Topic))
 	}
+	cli.SendNumeric(RPL_LISTEND, "*", "end of /LIST")
+
+	return nil
+}
+
+func whoisUCmdHandler(srv *Server, cli *Client, m *Message) error {
+	target := srv.FindClient(m.Args[0])
+	if target == nil {
+		cli.SendNumeric(ERR_NOSUCHNICK, m.Args[0], "no such nickname")
+		return fmt.Errorf("no such nickname")
+	}
+
+	cli.Whois(target)
 	return nil
 }

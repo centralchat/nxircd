@@ -10,6 +10,8 @@ import (
 
 	"os"
 
+	"strconv"
+
 	"github.com/apsdehal/go-logger"
 )
 
@@ -172,12 +174,23 @@ func (serv *Server) NickInUse(nick string) bool {
 	return false
 }
 
+func (serv *Server) LUsers(cli *Client) {
+	cli.SendNumeric(RPL_LUSERCLIENT, fmt.Sprintf("There are %d users on 1 server", serv.Clients.Count()))
+	cli.SendNumeric(RPL_LUSEROP, "0", "operator(s) online")
+	cli.SendNumeric(RPL_LUSERCHANNELS, strconv.Itoa(serv.Channels.Count()), "channels formed")
+	cli.SendNumeric(RPL_LUSERME, fmt.Sprintf("I have %d clients and 0 servers", serv.Clients.Count()))
+}
+
 func (serv *Server) Greet(cli *Client) {
 	cli.SendNumeric(RPL_WELCOME, fmt.Sprintf("Welcome to the %s IRC Network %s", serv.Network, cli.RealHostMask()))
 	cli.SendNumeric(RPL_YOURHOST, fmt.Sprintf("Your host is %s, running version %s", serv.Name, VERSION))
 	cli.SendNumeric(RPL_CREATED, fmt.Sprintf("This server was created %s", serv.CTime.Format(time.RFC1123)))
 
 	SendSupportLine(cli)
+
+	cli.SendNumeric(RPL_USERHOST, fmt.Sprintf("%s is now your displayed host", cli.HostMask()))
+
+	serv.LUsers(cli)
 }
 
 func NewTestClient(server *Server, nick, ident string) (*interfaces.TestSocket, *Client) {
