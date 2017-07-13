@@ -75,6 +75,9 @@ var clientCmdMap = map[string]ClientCmd{
 		minParams: 2,
 		handler:   kickUCmdHandler,
 	},
+	"LIST": {
+		handler: listUCmdHandler,
+	},
 }
 
 func nickUCmdHandler(srv *Server, cli *Client, m *Message) error {
@@ -226,7 +229,7 @@ func msgUCmdHandler(srv *Server, cli *Client, m *Message) error {
 		return fmt.Errorf("no such nick")
 	}
 
-	ct.PrivMsg(cli, m.Args[0])
+	ct.PrivMsg(cli, m.Args[1])
 	return nil
 }
 
@@ -330,5 +333,15 @@ func kickUCmdHandler(srv *Server, cli *Client, m *Message) error {
 	}
 
 	ch.Kick(cli, client, msg)
+	return nil
+}
+
+func listUCmdHandler(srv *Server, cli *Client, m *Message) error {
+	srv.Channels.lock.RLock()
+	defer srv.Channels.lock.RUnlock()
+
+	for _, channel := range srv.Channels.list {
+		cli.SendNumeric(RPL_LIST, channel.Name, fmt.Sprintf("%d", channel.Clients.Count()), fmt.Sprintf("[+%s] ", channel.Modes.FlagString()))
+	}
 	return nil
 }

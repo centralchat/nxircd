@@ -39,6 +39,7 @@ func (c *Channel) Join(cli *Client) {
 	isNewChannel := c.Empty()
 
 	cli.Reply("JOIN", c.Name)
+
 	cli.SendNumeric(RPL_CHANNELMODEIS, c.Name, "+"+c.Modes.FlagString())
 	cli.SendNumeric(RPL_CHANNELCREATED, c.Name, fmt.Sprintf("%d", c.CTime.Unix()))
 
@@ -53,7 +54,7 @@ func (c *Channel) Join(cli *Client) {
 	if isNewChannel {
 		c.AddModeServer(cli.Server, 'o', cli.Nick)
 	} else {
-		c.Send(cli.HostMask(), "JOIN", c.Name)
+		c.SendAllButPrefix(cli.HostMask(), "JOIN", c.Name)
 	}
 }
 
