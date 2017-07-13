@@ -182,4 +182,5 @@ const (
 	RPL_REG_VERIFICATION_REQUIRED   = "927"
 	ERR_REG_INVALID_CRED_TYPE       = "928"
 	ERR_REG_INVALID_CALLBACK        = "929"
+	RPL_SHOWCMDS                    = "930"
 )

@@ -31,6 +31,7 @@ type Client struct {
 	Ident string
 	Name  string
 	Host  string
+	Vhost string
 
 	sock interfaces.Socket
 

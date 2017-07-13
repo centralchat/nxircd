@@ -3,6 +3,7 @@ package ircd
 import (
 	"fmt"
 	"strings"
+	"time"
 )
 
 type ClientCmd struct {
@@ -78,6 +79,14 @@ var clientCmdMap = map[string]ClientCmd{
 	"LIST": {
 		handler: listUCmdHandler,
 	},
+	"PING": {
+		handler: pingUCmdHandler,
+	},
+}
+
+func pingUCmdHandler(src *Server, cli *Client, m *Message) error {
+	cli.SendFromServer("PING", fmt.Sprintf("%d", time.Now().Unix()))
+	return nil
 }
 
 func nickUCmdHandler(srv *Server, cli *Client, m *Message) error {
@@ -341,7 +350,7 @@ func listUCmdHandler(srv *Server, cli *Client, m *Message) error {
 	defer srv.Channels.lock.RUnlock()
 
 	for _, channel := range srv.Channels.list {
-		cli.SendNumeric(RPL_LIST, channel.Name, fmt.Sprintf("%d", channel.Clients.Count()), fmt.Sprintf("[+%s] ", channel.Modes.FlagString()))
+		cli.SendNumeric(RPL_LIST, channel.Name, fmt.Sprintf("%d", channel.Clients.Count()), fmt.Sprintf("[+%s] %s", channel.Modes.FlagString(), channel.Topic))
 	}
 	return nil
 }
