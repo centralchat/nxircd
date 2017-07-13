@@ -6,6 +6,9 @@ machine:
 
 checkout:
   post:
+    - go get github.com/tcnksm/ghr
+    - go build github.com/tcnksm/ghr
+    - export PATH=PATH:$PWD
     - mkdir -p $FIRST_GOPATH/src/
     - ln -sfv ${HOME}/${CIRCLE_PROJECT_REPONAME} ${LINK_DESTINATION}
 
