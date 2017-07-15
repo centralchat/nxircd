@@ -205,11 +205,11 @@ func (c *Channel) Quit(cli *Client, msg string) {
 }
 
 func (c *Channel) PrivMsg(cli *Client, msg string) {
-	c.SendAllButPrefix(cli.Nick, "PRIVMSG", c.Name, msg+" ")
+	c.SendAllButPrefix(cli.HostMask(), "PRIVMSG", c.Name, msg+" ")
 }
 
 func (c *Channel) Notice(cli *Client, msg string) {
-	c.SendAllButPrefix(cli.Nick, "NOTICE", c.Name, msg+" ")
+	c.SendAllButPrefix(cli.HostMask(), "NOTICE", c.Name, msg+" ")
 }
 
 func (c *Channel) Send(prefix, cmd string, args ...string) {

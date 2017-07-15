@@ -167,10 +167,11 @@ func (c *Client) SetMaskedHost() {
 	} else {
 		pieces := strings.Split(c.RealHost, ".")
 		str := fmt.Sprintf("%x", sha1.Sum([]byte(pieces[0])))
+
 		str = str[0:10]
 		if len(pieces) > 1 {
 			for _, piece := range pieces[1:] {
-				str = "." + piece
+				str += "." + piece
 			}
 		}
 		c.Host = c.Server.Config.HostPrefix + "-" + str
