@@ -320,7 +320,7 @@ func topicUCmdHandler(srv *Server, cli *Client, m *Message) error {
 	}
 
 	if !ch.IsOperator(cli) {
-		cli.SendNumeric(ERR_NOPRIVS, target, "*", "no such channel")
+		cli.SendNumeric(ERR_NOPRIVS, target, "topic", "invalid permissions")
 		return fmt.Errorf("no privs")
 	}
 	ch.SetTopic(cli, m.Args[1])
