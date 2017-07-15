@@ -216,11 +216,11 @@ func (c *Client) Reply(cmd string, args ...string) error {
 }
 
 func (c *Client) PrivMsg(cli *Client, msg string) {
-	c.Send(cli.Nick, "PRIVMSG", c.Nick, msg+" ")
+	c.Send(cli.HostMask(), "PRIVMSG", c.Nick, msg+" ")
 }
 
 func (c *Client) Notice(cli *Client, msg string) {
-	c.Send(cli.Nick, "NOTICE", c.Nick, msg+" ")
+	c.Send(cli.HostMask(), "NOTICE", c.Nick, msg+" ")
 }
 
 func (c *Client) SendFromServer(cmd string, args ...string) error {

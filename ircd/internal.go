@@ -30,6 +30,5 @@ func joinChannel(c *Client, cname string) error {
 
 	channel := c.Server.FindOrAddChan(cname)
 	channel.Join(c)
-
 	return nil
 }

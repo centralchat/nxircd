@@ -46,7 +46,6 @@ func (c *Channel) Join(cli *Client) {
 	c.sendTopicNumeric(cli)
 
 	c.Clients.Add(cli)
-
 	cli.Channels.Add(c)
 
 	c.Names(cli)
@@ -68,8 +67,8 @@ func (c *Channel) SetTopic(cli *Client, topic string) {
 
 func (c *Channel) sendTopicNumeric(cli *Client) {
 	if c.Topic != "" {
-		cli.SendNumeric(RPL_TOPIC, c.Topic+" ")
-		cli.SendNumeric(RPL_TOPICTIME, fmt.Sprintf("%d", c.TopicTime.Unix()))
+		cli.SendNumeric(RPL_TOPIC, c.Name, c.Topic+" ")
+		cli.SendNumeric(RPL_TOPICTIME, c.Name, fmt.Sprintf("%d", c.TopicTime.Unix()))
 	}
 }
 

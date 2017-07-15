@@ -92,6 +92,12 @@ type ModeChange struct {
 	Arg    string
 }
 
+type ModeChanges []ModeChange
+
+func (mc ModeChange) String() string {
+	return ""
+}
+
 var ModePrefixes = map[rune]rune{
 	'o': '@',
 	'h': '%',
