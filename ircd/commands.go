@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"nxircd/config"
 )
 
 type ClientCmd struct {
@@ -86,10 +88,39 @@ var clientCmdMap = map[string]ClientCmd{
 		minParams: 1,
 		handler:   whoisUCmdHandler,
 	},
+	"NAMES": {
+		minParams: 1,
+		handler:   namesUCmdHandler,
+	},
+	"OPER": {
+		minParams: 2,
+		handler:   operUCmdHandler,
+	},
+	"KILL": {
+		minParams: 1,
+		handler:   killUCmdHandler,
+	},
+}
+
+func namesUCmdHandler(srv *Server, cli *Client, m *Message) error {
+	target := m.Args[0]
+
+	if ValidChannel(target) {
+		ch := srv.FindChannel(target)
+		if ch == nil {
+			cli.SendNumeric(ERR_NOSUCHCHANNEL, target, "no such channel")
+			return fmt.Errorf("no such channel")
+		}
+		ch.Names(cli)
+		return nil
+	}
+
+	cli.SendNumeric(ERR_NOSUCHCHANNEL, target, "invalid channel name")
+	return fmt.Errorf("invalid channel")
 }
 
 func pingUCmdHandler(src *Server, cli *Client, m *Message) error {
-	cli.SendFromServer("PING", fmt.Sprintf("%d", time.Now().Unix()))
+	cli.SendFromServer("PONG", fmt.Sprintf("%d", time.Now().Unix()))
 	return nil
 }
 
@@ -98,13 +129,13 @@ func nickUCmdHandler(srv *Server, cli *Client, m *Message) error {
 
 	if srv.NickInUse(nick) {
 		// TODO Send no such nick
-		cli.SendNumeric(ERR_NICKNAMEINUSE, nick, "*", "nick in use")
+		cli.SendNumeric(ERR_NICKNAMEINUSE, nick, "nick in use")
 		return fmt.Errorf("nick in use")
 	}
 
 	if !ValidNick(nick) {
 		// This is what unreal sends? cray
-		cli.SendNumeric(ERR_NICKNAMEINUSE, nick, "*", "Nickname is unavailable: Illegal characters")
+		cli.SendNumeric(ERR_NICKNAMEINUSE, nick, "Nickname is unavailable: Illegal characters")
 		return fmt.Errorf("invalid nick")
 	}
 
@@ -124,8 +155,11 @@ func userUCmdHandler(srv *Server, cli *Client, m *Message) error {
 
 	cli.Ident = m.Args[0]
 	cli.Name = m.Args[3]
+	cli.registered = true
 
 	srv.Greet(cli)
+
+	srv.SNotice(fmt.Sprintf("Client connecting: %s (%s@%s) [%s] on %s", cli.Nick, cli.Ident, cli.RealHost, cli.IP, cli.Server.Name))
 
 	srv.Log.InfoF("Client Connected: %s", cli.HostMask())
 
@@ -187,13 +221,8 @@ func whoUCmdHandler(srv *Server, cli *Client, m *Message) error {
 }
 
 func quitUCmdHandler(srv *Server, cli *Client, m *Message) error {
-	msg := m.Args[0]
-
-	for _, ch := range cli.Channels.list {
-		ch.Quit(cli, msg)
-	}
-
 	srv.Clients.Delete(cli)
+	cli.Quit(m.Args[0])
 	return nil
 }
 
@@ -229,7 +258,7 @@ func msgUCmdHandler(srv *Server, cli *Client, m *Message) error {
 	if ValidChannel(target) {
 		ch := srv.FindChannel(target)
 		if ch == nil {
-			cli.SendNumeric(ERR_NOSUCHCHANNEL, target, "*", "no such channel")
+			cli.SendNumeric(ERR_NOSUCHCHANNEL, target, "no such channel")
 			return fmt.Errorf("no such channel")
 		}
 		ch.PrivMsg(cli, m.Args[1])
@@ -238,7 +267,7 @@ func msgUCmdHandler(srv *Server, cli *Client, m *Message) error {
 
 	ct := srv.FindClient(target)
 	if ct == nil {
-		cli.SendNumeric(ERR_NOSUCHNICK, target, "*", "no such nick")
+		cli.SendNumeric(ERR_NOSUCHNICK, target, "no such nick")
 		return fmt.Errorf("no such nick")
 	}
 
@@ -252,7 +281,7 @@ func noticeUCmdHandler(srv *Server, cli *Client, m *Message) error {
 	if ValidChannel(target) {
 		ch := srv.FindChannel(target)
 		if ch == nil {
-			cli.SendNumeric(ERR_NOSUCHCHANNEL, target, "*", "no such channel")
+			cli.SendNumeric(ERR_NOSUCHCHANNEL, target, "no such channel")
 			return fmt.Errorf("no such channel")
 		}
 		ch.Notice(cli, m.Args[1])
@@ -289,12 +318,12 @@ func modeUCmdHandler(srv *Server, cli *Client, m *Message) error {
 	if ValidNick(target) {
 		client := srv.FindClient(target)
 		if client == nil {
-			cli.SendNumeric(ERR_NOSUCHNICK, target, "*", "no such nickname")
+			cli.SendNumeric(ERR_NOSUCHNICK, target, "no such nickname")
 			return nil
 		}
 
 		changes := ParseUMode(m.Args[1:]...)
-		client.ApplyModeChanges(changes)
+		client.ApplyModeChanges(cli.Nick, changes)
 	}
 
 	return nil
@@ -304,13 +333,13 @@ func topicUCmdHandler(srv *Server, cli *Client, m *Message) error {
 	target := m.Args[0]
 
 	if !ValidChannel(target) {
-		cli.SendNumeric(ERR_NOSUCHCHANNEL, target, "*", "no such channel: invalid channel name")
+		cli.SendNumeric(ERR_NOSUCHCHANNEL, target, "no such channel: invalid channel name")
 		return fmt.Errorf("invalid channel")
 	}
 
 	ch := srv.FindChannel(target)
 	if ch == nil {
-		cli.SendNumeric(ERR_NOSUCHCHANNEL, target, "*", "no such channel")
+		cli.SendNumeric(ERR_NOSUCHCHANNEL, target, "no such channel")
 		return fmt.Errorf("no such channel")
 	}
 
@@ -320,7 +349,7 @@ func topicUCmdHandler(srv *Server, cli *Client, m *Message) error {
 	}
 
 	if !ch.IsOperator(cli) {
-		cli.SendNumeric(ERR_NOPRIVS, target, "topic", "invalid permissions")
+		cli.SendNumeric(ERR_NOPRIVILEGES, target, target, "topic: no permission.")
 		return fmt.Errorf("no privs")
 	}
 	ch.SetTopic(cli, m.Args[1])
@@ -330,18 +359,18 @@ func topicUCmdHandler(srv *Server, cli *Client, m *Message) error {
 func kickUCmdHandler(srv *Server, cli *Client, m *Message) error {
 	target := m.Args[0]
 	if !ValidChannel(target) {
-		cli.SendNumeric(ERR_NOSUCHCHANNEL, target, "*", "no such channel: invalid channel name")
+		cli.SendNumeric(ERR_NOSUCHCHANNEL, target, "no such channel: invalid channel name")
 		return fmt.Errorf("invalid channel")
 	}
 
 	ch := srv.FindChannel(target)
 	if ch == nil {
-		cli.SendNumeric(ERR_NOSUCHCHANNEL, target, "*", "no such channel")
+		cli.SendNumeric(ERR_NOSUCHCHANNEL, target, "no such channel")
 		return fmt.Errorf("no such channel")
 	}
 
 	if !ch.IsHalfOp(cli) && !ch.IsOperator(cli) {
-		cli.SendNumeric(ERR_NOPRIVILEGES, "kick", target, "no permissions.")
+		cli.SendNumeric(ERR_NOPRIVILEGES, target, "kick: no permissions.")
 		return fmt.Errorf("no permissions")
 	}
 
@@ -367,7 +396,7 @@ func listUCmdHandler(srv *Server, cli *Client, m *Message) error {
 	for _, channel := range srv.Channels.list {
 		cli.SendNumeric(RPL_LIST, channel.Name, fmt.Sprintf("%d", channel.Clients.Count()), fmt.Sprintf("[+%s] %s", channel.Modes.FlagString(), channel.Topic))
 	}
-	cli.SendNumeric(RPL_LISTEND, "*", "end of /LIST")
+	cli.SendNumeric(RPL_LISTEND, "End of /LIST")
 
 	return nil
 }
@@ -380,5 +409,55 @@ func whoisUCmdHandler(srv *Server, cli *Client, m *Message) error {
 	}
 
 	cli.Whois(target)
+	return nil
+}
+
+func operUCmdHandler(srv *Server, cli *Client, m *Message) error {
+	var oc *config.IRCOp
+
+	for _, oconf := range srv.Config.IrcOps {
+		if oconf.User == m.Args[0] {
+			oc = &oconf
+			break
+		}
+	}
+
+	if oc == nil {
+		srv.SNotice(fmt.Sprintf("Failed oper attempt by %s (%s) [unknown acct]", cli.Nick, cli.IdentHost()))
+		return fmt.Errorf("invalid oper attempt (user)")
+	}
+
+	if oc.Pass != m.Args[1] {
+		srv.SNotice(fmt.Sprintf("Failed oper attempt by %s (%s) [%s] invalid password", cli.Nick, cli.IdentHost(), oc.User))
+		return fmt.Errorf("invalid oper attempt (pass)")
+	}
+
+	cli.Oper(*oc)
+	return nil
+}
+
+func killUCmdHandler(srv *Server, cli *Client, m *Message) error {
+	target := m.Args[0]
+
+	ct := srv.FindClient(target)
+	if ct == nil {
+		cli.SendNumeric(ERR_NOSUCHNICK, target, "no such nick")
+		return fmt.Errorf("no such nick")
+	}
+
+	msg := "no reason"
+	if len(m.Args) > 1 {
+		msg = m.Args[1]
+	}
+
+	quitmsg := fmt.Sprintf("Killed by %s (%s)", cli.Nick, msg)
+
+	ct.Send("", "ERROR", fmt.Sprintf("Closing link: %s [%s] %s (%s)", ct.Nick, ct.RealHost, cli.Nick, quitmsg))
+
+	ct.sock.Close()
+
+	// Received KILL message for twitch!mitch@manager.centralchat.net from _Twitch Path: manager.centralchat.net!_Twitch (.)
+	srv.SNotice(fmt.Sprintf("Received KILL message for %s from %s Path: %s!%s (%s)", ct.HostMask(), cli.Nick, cli.Host, cli.Ident, quitmsg))
+
 	return nil
 }

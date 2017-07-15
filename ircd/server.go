@@ -34,7 +34,10 @@ type Server struct {
 
 	stopping bool
 
-	Clients  *ClientList
+	Clients *ClientList
+
+	IRCOps map[*Client]bool
+
 	Channels *ChanList
 
 	ticker *time.Ticker
@@ -65,6 +68,7 @@ func NewLocalServer(conf *config.Config, log *logger.Logger, isMe bool) *Server 
 		// Maybe we remove this?
 		messages: make(chan *Message),
 		Signals:  make(chan os.Signal),
+		IRCOps:   make(map[*Client]bool),
 
 		ticker: time.NewTicker(1 * time.Second),
 
@@ -125,6 +129,14 @@ func (serv *Server) acceptLoop(listener net.Listener) {
 
 		serv.Log.DebugF("Accepting Connection: %v", conn.RemoteAddr)
 		serv.connections <- NewIRCSocket(conn)
+	}
+}
+
+func (serv *Server) SNotice(msg string) {
+	for cli, _ := range serv.IRCOps {
+		if _, found := cli.Modes.Find('s'); found {
+			cli.SendFromServer("NOTICE", cli.Nick, "*** "+msg)
+		}
 	}
 }
 
@@ -191,6 +203,8 @@ func (serv *Server) Greet(cli *Client) {
 	cli.SendNumeric(RPL_USERHOST, fmt.Sprintf("%s is now your displayed host", cli.HostMask()))
 
 	serv.LUsers(cli)
+
+	cli.ApplyModes(cli.HostMask(), 'x', 'i')
 }
 
 func NewTestClient(server *Server, nick, ident string) (*interfaces.TestSocket, *Client) {

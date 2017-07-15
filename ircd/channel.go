@@ -68,7 +68,7 @@ func (c *Channel) SetTopic(cli *Client, topic string) {
 func (c *Channel) sendTopicNumeric(cli *Client) {
 	if c.Topic != "" {
 		cli.SendNumeric(RPL_TOPIC, c.Name, c.Topic+" ")
-		cli.SendNumeric(RPL_TOPICTIME, c.Name, fmt.Sprintf("%d", c.TopicTime.Unix()))
+		cli.SendNumeric(RPL_TOPICTIME, c.Name, c.TopicSetter, fmt.Sprintf("%d", c.TopicTime.Unix()))
 	}
 }
 
@@ -115,15 +115,26 @@ func (c *Channel) ClientCan(cli *Client, permName string) bool {
 	return false
 }
 
-func (c *Channel) ModePrefixFor(cli *Client) string {
+func (c *Channel) AllModePrefixesFor(cli *Client) string {
+	var str string
+
 	if c.IsOperator(cli) {
-		return "@"
+		str += "@"
 	}
 	if c.IsHalfOp(cli) {
-		return "%"
+		str += "%"
 	}
+
 	if c.IsVoice(cli) {
-		return "+"
+		str += "+"
+	}
+
+	return str
+}
+
+func (c *Channel) ModePrefixFor(cli *Client) string {
+	if str := c.AllModePrefixesFor(cli); str != "" {
+		return string(str[0])
 	}
 	return ""
 }

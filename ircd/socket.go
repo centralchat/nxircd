@@ -66,6 +66,7 @@ func (sock *IRCSocket) Read() (string, error) {
 
 func (sock *IRCSocket) Close() {
 	sock.Closed = true
+
 	// Ignore error but indicate in the code we are ignoring it.
 	_ = sock.conn.Close()
 }

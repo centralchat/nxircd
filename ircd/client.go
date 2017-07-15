@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"nxircd/config"
 	"nxircd/interfaces"
 	"strings"
 )
@@ -51,6 +52,9 @@ type Client struct {
 
 	local bool
 
+	Operator bool
+	operconf config.IRCOp
+
 	capState   int
 	capVersion int
 
@@ -84,7 +88,7 @@ func (c *Client) Run() {
 
 	clientPreflight(c)
 
-	for err == nil {
+	for err == nil && c.connected {
 		line, err := c.sock.Read()
 		if err != nil {
 			if c.connected {
@@ -126,8 +130,21 @@ func (c *Client) Prefix() string {
 	return ""
 }
 
+func (c *Client) Oper(oconf config.IRCOp) {
+	c.ApplyModes(c.HostMask(), 'o', 's')
+
+	c.SendNumeric(RPL_YOUREOPER, c.Nick, "You are now an IRC Operator")
+
+	c.Operator = true
+	c.operconf = oconf
+
+	c.Server.SNotice(fmt.Sprintf("%s (%s) [%s] is now an operator.", c.Nick, c.IdentHost(), c.operconf.User))
+
+	c.Server.IRCOps[c] = true
+}
+
 // This is ugly but im tired so lets leave it be for now
-func (c *Client) ApplyModeChanges(changes []ModeChange) {
+func (c *Client) ApplyModeChanges(prefix string, changes []ModeChange) {
 
 	addString := ""
 	delString := ""
@@ -147,11 +164,15 @@ func (c *Client) ApplyModeChanges(changes []ModeChange) {
 	}
 
 	if addString != "" {
-		c.Send(c.Nick, "MODE", c.Nick, "+"+addString)
+		c.Send(prefix, "MODE", c.Nick, "+"+addString)
 	}
 	if delString != "" {
-		c.Send(c.Nick, "MODE", c.Nick, "-"+delString)
+		c.Send(prefix, "MODE", c.Nick, "-"+delString)
 	}
+}
+
+func (c *Client) IdentHost() string {
+	return fmt.Sprintf("%s@%s", c.Ident, c.Host)
 }
 
 func (c *Client) RealHostMask() string {
@@ -186,10 +207,15 @@ func (c *Client) IPMask() string {
 	return fmt.Sprintf("%s!%s@%s", c.Nick, c.Ident, c.IP)
 }
 
-func (c *Client) ApplyModes(ms ...Mode) {
+func (c *Client) ApplyModes(source string, ms ...Mode) {
+	modes := ""
 	for _, m := range ms {
 		c.Modes.Add(m, "")
+		modes += m.String()
 	}
+
+	c.Send(source, "MODE", c.Nick, "+"+modes)
+
 }
 
 func (c *Client) Quit(msg string) {
@@ -198,6 +224,10 @@ func (c *Client) Quit(msg string) {
 		channel.Quit(c, msg)
 		c.Channels.Delete(channel)
 	}
+
+	c.connected = false
+
+	c.Server.SNotice(fmt.Sprintf("Client exiting: %s (%s@%s) [%s] (Quit: %s)", c.Nick, c.Ident, c.RealHost, c.IP, msg))
 	c.Server.RemoveClient(c)
 }
 
